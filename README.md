@@ -4,7 +4,7 @@ Despliegue automatizado del proyecto mediante Docker Compose.
 
 ## Instrucciones de Despliegue
 
-La evaluación se realizará siguiendo exactamente estos tres pasos:
+Realizará estos tres pasos:
 
 1. Clonar el repositorio:
    git clone https://github.com/carlosss12/sip-supervision-docker.git
