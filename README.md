@@ -20,4 +20,4 @@ Frontend (Interfaz de Usuario): Accesible desde el navegador en http://localhost
 
 Backend	http://localhost:4000
 
-ServicioAccesoPuertoFrontendhttp://localhost:30003000Backendhttp://localhost:40004000Base de Datoslocalhost:5432
+Base de Datos	localhost:5432	
