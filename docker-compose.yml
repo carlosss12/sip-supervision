@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sip_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS:-superseguro123}
+      POSTGRES_DB: ${DB_NAME:-sip_protection}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - sip_red
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-sip_protection}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: sip_backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://${DB_USER:-postgres}:${DB_PASS:-superseguro123}@db:5432/${DB_NAME:-sip_protection}?schema=public
+    networks:
+      - sip_red
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    container_name: sip_frontend
+    restart: always
+    ports:
+      - "3000:5173"
+    networks:
+      - sip_red
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+
+networks:
+  sip_red:
+    driver: bridge
