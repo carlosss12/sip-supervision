@@ -17,5 +17,5 @@ docker compose up
 
 ## Accesos de la Aplicación
 Frontend (Interfaz de Usuario): Accesible desde el navegador en http://localhost:3000
-
-Backend (API REST): Puerto 4000
+Backend	http://localhost:4000
+ServicioAccesoPuertoFrontendhttp://localhost:30003000Backendhttp://localhost:40004000Base de Datoslocalhost:5432
