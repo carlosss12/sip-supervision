@@ -1,0 +1,73 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  SUPERVISOR
+  GUARDIA
+}
+
+enum Prioridad {
+  NORMAL
+  URGENTE
+}
+
+enum EstadoTarea {
+  PENDIENTE
+  EN_REVISION
+  APROBADA
+  RECHAZADA
+}
+
+model Usuario {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  contrasena      String
+  nombre          String
+  rol             Rol
+  creadoEn        DateTime @default(now())
+  
+  tareasCreadas   Tarea[]  @relation("TareasCreadas")
+  tareasAsignadas Tarea[]  @relation("TareasAsignadas")
+
+  @@map("usuarios")
+}
+
+model Turno {
+  id      Int       @id @default(autoincrement())
+  inicio  DateTime  @default(now())
+  fin     DateTime?
+  abierto Boolean   @default(true)
+  tareas  Tarea[]
+
+  @@map("turnos")
+}
+
+model Tarea {
+  id            Int         @id @default(autoincrement())
+  descripcion   String      @db.Text
+  zona          String      @db.VarChar(100)
+  prioridad     Prioridad   @default(NORMAL)
+  estado        EstadoTarea @default(PENDIENTE)
+  evidencia     String?     @db.Text
+  fotoUrl       String?     @db.Text
+  observacion   String?     @db.Text
+  creadaEn      DateTime    @default(now())
+  
+  turno         Turno?      @relation(fields: [turnoId], references: [id], onDelete: SetNull)
+  turnoId       Int?
+  
+  supervisor    Usuario     @relation("TareasCreadas", fields: [supervisorId], references: [id], onDelete: Cascade)
+  supervisorId  Int
+  
+  guardia       Usuario     @relation("TareasAsignadas", fields: [guardiaId], references: [id], onDelete: Cascade)
+  guardiaId     Int
+
+  @@map("tareas")
+}

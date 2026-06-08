@@ -1,0 +1,15 @@
+# Entorno y Credenciales (Seguridad)
+.env
+
+# Dependencias de Node (No se suben porque se instalan en Docker)
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# Archivos de compilación local
+dist/
+build/
+.production/
+
+# Reportes e informes generados en vivo (Auditoría)
+backend/uploads/*.pdf
