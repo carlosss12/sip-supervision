@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from './api/client';
+import './index.css'; // Vinculación obligatoria del nuevo motor de diseño
 
 interface Usuario {
   id: number;
@@ -26,7 +27,7 @@ export default function App() {
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
-  // Estados del Supervisor
+  // Supervisor
   const [guardias, setGuardias] = useState<Usuario[]>([]);
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [nuevaZona, setNuevaZona] = useState('');
@@ -35,8 +36,18 @@ export default function App() {
   const [guardiaAsignadoId, setGuardiaAsignadoId] = useState('');
   const [obsSupervisor, setObsSupervisor] = useState<{ [key: number]: string }>({});
 
-  // Estados del Guardia (Simulador Web)
+  // Guardia
   const [comentarioGuardia, setComentarioGuardia] = useState<{ [key: number]: string }>({});
+  const [imagenBase64, setImagenBase64] = useState<{ [key: number]: string }>({});
+  const fileInputRef = useRef<{ [key: number]: HTMLInputElement | null }>({});
+
+  // Feedback Interno
+  const [notificacion, setNotificacion] = useState<{ mensaje: string; tipo: 'exito' | 'error' | 'alerta' } | null>(null);
+
+  const mostrarNotificacion = (mensaje: string, tipo: 'exito' | 'error' | 'alerta' = 'exito') => {
+    setNotificacion({ mensaje, tipo });
+    setTimeout(() => setNotificacion(null), 4000);
+  };
 
   const cargarDatosSistema = useCallback(async () => {
     try {
@@ -45,7 +56,7 @@ export default function App() {
       const resGuardias = await apiClient.get('/guardias');
       setGuardias(resGuardias.data);
     } catch (err) {
-      console.error('Error en sincronización táctica:', err);
+      console.error('Sincronización interrumpida.');
     }
   }, []);
 
@@ -61,25 +72,17 @@ export default function App() {
     e.preventDefault();
     setLoginError('');
     try {
-      const res = await apiClient.post('/login', { 
-        email: loginEmail, 
-        contrasena: loginPassword 
-      });
-      setUsuario({
-        id: res.data.id,
-        nombre: res.data.nombre,
-        email: res.data.email,
-        rol: res.data.role
-      });
+      const res = await apiClient.post('/login', { email: loginEmail, contrasena: loginPassword });
+      setUsuario({ id: res.data.id, nombre: res.data.nombre, email: res.data.email, rol: res.data.role });
+      mostrarNotificacion('Credenciales verificadas. Inicializando consola.');
     } catch (err) {
-      setLoginError('Acceso denegado. Credenciales no corporativas o contraseña incorrecta.');
+      setLoginError('Error de autenticación. Verifique las credenciales del operador.');
     }
   };
 
   const crearOrdenTrabajo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nuevaZona || !nuevaDesc || !guardiaAsignadoId || !usuario) return;
-
     try {
       await apiClient.post('/tareas', {
         zona: nuevaZona,
@@ -88,11 +91,12 @@ export default function App() {
         guardiaId: Number(guardiaAsignadoId),
         supervisorId: usuario.id
       });
-      setNuevaZona('');
-      setNuevaDesc('');
+      setNuevaZona(''); 
+      setNuevaDesc(''); 
+      mostrarNotificacion('Misión perimetral transmitida con éxito.');
       cargarDatosSistema();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Fallo al transmitir orden.');
+    } catch (err) { 
+      mostrarNotificacion('Error de enlace de red al despachar.', 'error'); 
     }
   };
 
@@ -100,287 +104,236 @@ export default function App() {
     try {
       await apiClient.put(`/tareas/${tareaId}/validar`, {
         estado,
-        observacion: obsSupervisor[tareaId] || 'Ronda validada conforme por la Central de Operaciones.'
+        observacion: obsSupervisor[tareaId] || (estado === 'APROBADA' ? 'Validación de conformidad exitosa.' : 'Inspección rechazada por inconsistencias.')
       });
+      mostrarNotificacion(estado === 'APROBADA' ? 'Registro aprobado y archivado.' : 'Misión devuelta a terreno.');
       cargarDatosSistema();
-    } catch (err) {
-      alert('Error en dictamen de auditoría.');
+    } catch (err) { 
+      mostrarNotificacion('Fallo al registrar dictamen.', 'error'); 
     }
   };
 
   const clausurarTurnoOperativo = async () => {
-    if (!window.confirm('¿Confirmar clausura de turno? Esta acción bloqueará los registros actuales y compilará el PDF de auditoría de forma inmutable.')) return;
+    if (!window.confirm('¿Confirmar clausura de la jornada operativa?')) return;
     try {
-      const res = await apiClient.post('/turnos/cerrar');
-      alert(`TURNO CLAUSURADO\n${res.data.message}`);
+      await apiClient.post('/turnos/cerrar');
+      mostrarNotificacion('Jornada finalizada de forma segura. PDF compilado.');
       cargarDatosSistema();
     } catch (err) {
-      alert('Error crítico durante el cierre de turno.');
+      mostrarNotificacion('Error crítico al cerrar jornada.', 'error');
     }
+  };
+
+  const capturarFotoNativa = (e: React.ChangeEvent<HTMLInputElement>, tareaId: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagenBase64(prev => ({ ...prev, [tareaId]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   const enviarEvidenciaDesdeWeb = async (tareaId: number) => {
     const comentario = comentarioGuardia[tareaId];
-    if (!comentario) return alert('Debe registrar un informe descriptivo del perímetro.');
+    const foto = imagenBase64[tareaId];
+    if (!comentario) return mostrarNotificacion('Bitácora técnica obligatoria.', 'alerta');
+    if (!foto) return mostrarNotificacion('Evidencia fotográfica obligatoria.', 'alerta');
+
     try {
-      await apiClient.post('/evidencias', {
-        tareaId,
-        comentario,
-        fotoUrl: null // Foto deshabilitada temporalmente para el hito de avance web
-      });
+      await apiClient.post('/evidencias', { tareaId, comentario, fotoBase64: foto });
+      setComentarioGuardia(p => ({ ...p, [tareaId]: '' }));
+      setImagenBase64(p => ({ ...p, [tareaId]: '' }));
+      mostrarNotificacion('Reporte transmitido a la Central de Operaciones.');
       cargarDatosSistema();
-    } catch (err) {
-      alert('Error al transmitir informe de evidencia.');
+    } catch (err) { 
+      mostrarNotificacion('Error en el canal de transmisión.', 'error'); 
     }
   };
 
+  const renderEstadoBadge = (estado: string) => {
+    const configuraciones: { [key: string]: { texto: string; fondo: string; color: string } } = {
+      PENDIENTE: { texto: 'PENDIENTE DE INSPECCIÓN', fondo: 'rgba(234, 179, 8, 0.1)', color: '#eab308' },
+      EN_REVISION: { texto: 'EN AUDITORÍA DE CENTRAL', fondo: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' },
+      APROBADA: { texto: 'CONFORME', fondo: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' },
+      RECHAZADA: { texto: 'NO CONFORME - REASIGNADA', fondo: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }
+    };
+    const badge = configuraciones[estado] || { texto: estado, fondo: '#27272a', color: '#a1a1aa' };
+    return (
+      <span style={{ backgroundColor: badge.fondo, color: badge.color, padding: '4px 10px', fontSize: '10px', fontWeight: 700, borderRadius: '4px', letterSpacing: '0.5px' }}>
+        {badge.texto}
+      </span>
+    );
+  };
+
+  // VISTA 1: LOGIN (CONSOLA DE CONTROL)
   if (!usuario) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#09090b' }}>
-        <form onSubmit={handleLogin} style={{ background: '#121214', padding: '40px', borderRadius: '8px', width: '380px', border: '1px solid #27272a', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.7)' }}>
+        <form onSubmit={handleLogin} style={{ background: '#121214', padding: '45px', borderRadius: '6px', width: '360px', border: '1px solid #232326', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <div style={{ display: 'inline-block', backgroundColor: '#facc15', color: '#000', padding: '4px 10px', fontSize: '11px', fontWeight: 'bold', borderRadius: '3px', marginBottom: '10px', letterSpacing: '1.5px' }}>
-              S.I. PROTECTION
-            </div>
-            <h2 style={{ margin: 0, color: '#f4f4f5', fontSize: '22px', fontWeight: 600, letterSpacing: '-0.5px' }}>Terminal de Acceso</h2>
-            <p style={{ margin: '5px 0 0 0', fontSize: '12px', color: '#71717a' }}>Sistema de Control e Integridad Operativa</p>
+            <div style={{ color: '#eab308', fontSize: '12px', fontWeight: 700, letterSpacing: '2px', marginBottom: '8px' }}>S.I. PROTECTION</div>
+            <h2 style={{ margin: 0, color: '#f4f4f5', fontSize: '16px', fontWeight: 500, letterSpacing: '0.5px' }}>SISTEMA DE AUDITORÍA PERIMETRAL</h2>
           </div>
-          
-          <div style={{ marginBottom: '15px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', marginBottom: '6px', color: '#a1a1aa', textTransform: 'uppercase' }}>Correo Institucional:</label>
-            <input 
-              type="email" 
-              placeholder="usuario@sipprotection.cl"
-              value={loginEmail} 
-              onChange={(e) => setLoginEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', border: '1px solid #27272a', borderRadius: '6px', backgroundColor: '#18181b', color: '#fff', fontSize: '14px', outline: 'none' }}
-            />
+          <div style={{ marginBottom: '14px' }}>
+            <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>CORREO CORPORATIVO</label>
+            <input type="email" placeholder="operador@sipprotection.cl" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required className="form-control-sip" />
           </div>
-
-          <div style={{ marginBottom: '20px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', marginBottom: '6px', color: '#a1a1aa', textTransform: 'uppercase' }}>Contraseña de Seguridad:</label>
-            <input 
-              type="password" 
-              placeholder="••••••••"
-              value={loginPassword} 
-              onChange={(e) => setLoginPassword(e.target.value)}
-              required
-              style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', border: '1px solid #27272a', borderRadius: '6px', backgroundColor: '#18181b', color: '#fff', fontSize: '14px', outline: 'none' }}
-            />
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>CREDENCIAL DE ACCESO</label>
+            <input type="password" placeholder="••••••••••••" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required className="form-control-sip" />
           </div>
-          
-          {loginError && (
-            <div style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid #ef4444', padding: '10px', borderRadius: '6px', margin: '0 0 20px 0' }}>
-              <p style={{ color: '#f87171', fontSize: '12px', margin: 0, textAlign: 'center' }}>{loginError}</p>
-            </div>
-          )}
-          
-          <button type="submit" style={{ width: '100%', padding: '14px', backgroundColor: '#facc15', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', fontSize: '14px', cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-            Autenticar e Ingresar
-          </button>
+          {loginError && <p style={{ color: '#f87171', fontSize: '12px', margin: '-14px 0 18px 0', lineHeight: '1.4' }}>{loginError}</p>}
+          <button type="submit" className="btn-primary-sip">AUTENTICAR SISTEMA</button>
         </form>
       </div>
     );
   }
 
+  // VISTA GENERAL DEL DASHBOARD MODERNO
   return (
-    <div style={{ padding: '25px', maxWidth: '1600px', margin: '0 auto', backgroundColor: '#09090b', minHeight: '100vh', color: '#f4f4f5' }}>
+    <div style={{ padding: '24px', maxWidth: '1440px', margin: '0 auto', backgroundColor: '#09090b', minHeight: '100vh', color: '#f4f4f5' }}>
       
-      {/* HEADER CORPORATIVO */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #27272a', paddingBottom: '20px', marginBottom: '30px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <h1 style={{ margin: 0, color: '#fff', fontSize: '24px', fontWeight: 700, letterSpacing: '-0.5px' }}>S.I. PROTECTION</h1>
-            <span style={{ backgroundColor: '#27272a', color: '#facc15', fontSize: '10px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', border: '1px solid #3f3f46' }}>SISTEMA DE MONITOREO</span>
-          </div>
-          <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#71717a' }}>
-            Estación de Trabajo: <strong style={{ color: '#e4e4e7' }}>{usuario.nombre}</strong> <span style={{ color: '#52525b' }}>|</span> Rol: <span style={{ color: '#facc15', fontWeight: '600' }}>{usuario.rol}</span>
-          </p>
+      {/* Sistema Toast Notificación */}
+      {notificacion && (
+        <div style={{ position: 'fixed', top: '24px', right: '24px', padding: '14px 24px', borderRadius: '4px', color: '#000000', fontWeight: 700, fontSize: '11px', letterSpacing: '0.5px', zIndex: 9999, boxShadow: '0 8px 30px rgba(0,0,0,0.5)', transition: 'all 0.3s ease', backgroundColor: notificacion.tipo === 'error' ? '#f87171' : notificacion.tipo === 'alerta' ? '#fbbf24' : '#34d399' }}>
+          {notificacion.mensaje.toUpperCase()}
         </div>
-        <button onClick={() => setUsuario(null)} style={{ padding: '10px 18px', backgroundColor: '#18181b', color: '#a1a1aa', border: '1px solid #27272a', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
-          Desconectar Sistema
-        </button>
+      )}
+
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #232326', paddingBottom: '20px', marginBottom: '30px' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '16px', fontWeight: 600, letterSpacing: '0.5px', color: '#ffffff' }}>S.I. PROTECTION — DEPARTAMENTO DE OPERACIONES</h1>
+          <p style={{ margin: '6px 0 0 0', fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Terminal Activo: {usuario.nombre} | ROL: {usuario.rol}</p>
+        </div>
+        <button onClick={() => setUsuario(null)} style={{ padding: '8px 16px', background: '#161619', color: '#a1a1aa', border: '1px solid #27272a', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px' }}>DESCONECTAR TERMINAL</button>
       </header>
 
-      {/* ROL: SUPERVISOR CENTRAL */}
+      {/* INTERFAZ DEL SUPERVISOR (DASHBOARD GENERAL DE ALTA DENSIDAD) */}
       {usuario.rol === 'SUPERVISOR' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '420px 1fr', gap: '30px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', gap: '30px' }}>
           <div>
-            <div style={{ background: '#121214', padding: '25px', borderRadius: '8px', border: '1px solid #27272a', marginBottom: '25px' }}>
-              <h3 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '14px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '2px solid #facc15', paddingBottom: '8px' }}>Emitir Orden de Despliegue</h3>
-              
+            <div style={{ background: '#121214', padding: '24px', borderRadius: '6px', border: '1px solid #232326', marginBottom: '24px' }}>
+              <h3 style={{ margin: '0 0 20px 0', fontSize: '11px', color: '#eab308', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 700 }}>Emisión de Orden de Despacho</h3>
               <form onSubmit={crearOrdenTrabajo}>
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#a1a1aa', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px' }}>Perímetro / Zona Objetivo:</label>
-                  <input type="text" placeholder="Ej: Bodega Central, Patio de Racks" value={nuevaZona} onChange={e => setNuevaZona(e.target.value)} required style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', background: '#18181b', border: '1px solid #27272a', borderRadius: '6px', color: '#fff', fontSize: '14px' }}/>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>ÁREA O CRUCE DE PERÍMETRO</label>
+                  <input type="text" placeholder="Ej: Sector C - Acceso de Carga" value={nuevaZona} onChange={e => setNuevaZona(e.target.value)} required className="form-control-sip" />
                 </div>
-                
-                <div style={{ marginBottom: '15px' }}>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#a1a1aa', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px' }}>Instrucciones Críticas de Seguridad:</label>
-                  <textarea placeholder="Escriba los puntos específicos a inspeccionar..." value={nuevaDesc} onChange={e => setNuevaDesc(e.target.value)} required style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', background: '#18181b', border: '1px solid #27272a', borderRadius: '6px', color: '#fff', fontSize: '14px', height: '90px', resize: 'none', fontFamily: 'inherit' }}/>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>DIRECTRICES TÉCNICAS DE INSPECCIÓN</label>
+                  <textarea placeholder="Detalle el protocolo específico a evaluar..." value={nuevaDesc} onChange={e => setNuevaDesc(e.target.value)} required className="form-control-sip" style={{ height: '90px', resize: 'none', fontFamily: 'inherit' }}/>
                 </div>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#a1a1aa', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px' }}>Prioridad Táctica:</label>
-                    <select value={nuevaPrioridad} onChange={e => setNuevaPrioridad(e.target.value as any)} style={{ width: '100%', padding: '10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '6px', color: '#fff', fontSize: '14px' }}>
-                      <option value="NORMAL">NORMAL</option>
-                      <option value="URGENTE">URGENTE</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#a1a1aa', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '6px' }}>Asignar Operador:</label>
-                    <select value={guardiaAsignadoId} onChange={e => setGuardiaAsignadoId(e.target.value)} required style={{ width: '100%', padding: '10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '6px', color: '#fff', fontSize: '14px' }}>
-                      <option value="">Seleccionar...</option>
-                      {guardias.map(g => <option key={g.id} value={g.id}>{g.nombre}</option>)}
-                    </select>
-                  </div>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>NIVEL DE PRIORIDAD</label>
+                  <select value={nuevaPrioridad} onChange={e => setNuevaPrioridad(e.target.value as any)} className="form-control-sip">
+                    <option value="NORMAL">NIVEL 1: PROCEDIMIENTO ESTÁNDAR</option>
+                    <option value="URGENTE">NIVEL 2: REQUERIMIENTO CRÍTICO</option>
+                  </select>
                 </div>
-
-                <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#facc15', color: '#000', border: 'none', borderRadius: '6px', fontWeight: '700', cursor: 'pointer', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Transmitir Orden de Trabajo
-                </button>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>OPERADOR DE SEGURIDAD ASIGNADO</label>
+                  <select value={guardiaAsignadoId} onChange={e => setGuardiaAsignadoId(e.target.value)} required className="form-control-sip">
+                    <option value="">Seleccione personal disponible...</option>
+                    {guardias.map(g => <option key={g.id} value={g.id}>{g.nombre.toUpperCase()}</option>)}
+                  </select>
+                </div>
+                <button type="submit" className="btn-primary-sip">DESPACHAR ORDEN DE TRABAJO</button>
               </form>
             </div>
-
-            <div style={{ background: '#121214', padding: '25px', borderRadius: '8px', border: '1px solid #27272a' }}>
-              <h3 style={{ margin: '0 0 10px 0', color: '#ef4444', fontSize: '14px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Fin de Jornada Operativa</h3>
-              <p style={{ fontSize: '12px', color: '#71717a', margin: '0 0 20px 0', lineHeight: '1.5' }}>Al presionar este botón se congelará la bitácora del turno, liberando de forma automatizada un informe consolidado en formato PDF inmutable.</p>
-              <button onClick={clausurarTurnoOperativo} style={{ width: '100%', padding: '12px', backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #ef4444', borderRadius: '6px', fontWeight: '700', fontSize: '13px', cursor: 'pointer', textTransform: 'uppercase' }} onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#ef4444'; e.currentTarget.style.color = '#fff'; }} onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#ef4444'; }}>
-                Cerrar Turno y Exportar Reporte PDF
-              </button>
-            </div>
+            <button onClick={clausurarTurnoOperativo} style={{ width: '100%', padding: '14px', background: 'transparent', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '4px', fontWeight: 700, cursor: 'pointer', fontSize: '11px', letterSpacing: '0.5px', transition: 'all 0.2s' }}>CONSOLIDAR BITÁCORA Y CERRAR JORNADA</button>
           </div>
 
-          {/* BITÁCORA DEL SUPERVISOR */}
           <div>
-            <h3 style={{ margin: '0 0 20px 0', color: '#fff', fontSize: '18px', fontWeight: '600' }}>Bitácora de Eventos Activos</h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              {tareas.length === 0 ? (
-                <div style={{ border: '1px dashed #27272a', padding: '40px', borderRadius: '8px', textAlign: 'center', color: '#71717a' }}>
-                  No hay misiones de control despachadas en este turno.
-                </div>
-              ) : (
-                tareas.map(t => {
-                  const colorEstado = t.estado === 'APROBADA' ? '#10b981' : t.estado === 'EN_REVISION' ? '#facc15' : t.estado === 'RECHAZADA' ? '#ef4444' : '#a1a1aa';
-                  const bgPrioridad = t.prioridad === 'URGENTE' ? 'rgba(239,68,68,0.05)' : 'transparent';
-                  const borderPrioridad = t.prioridad === 'URGENTE' ? '1px solid #ef4444' : '1px solid #27272a';
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '12px', fontWeight: 700, color: '#71717a', letterSpacing: '0.5px' }}>MONITOREO DE BITÁCORA GENERAL</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {tareas.map(t => (
+                <div key={t.id} className={`card-sip ${t.prioridad === 'URGENTE' ? 'card-urgent-sip' : ''}`}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px', color: '#ffffff' }}>
+                      {t.zona.toUpperCase()} <span className="code-ref">REF-{t.id}</span>
+                    </span>
+                    {renderEstadoBadge(t.estado)}
+                  </div>
+                  <p style={{ fontSize: '13px', color: '#d4d4d8', margin: '0 0 16px 0', lineHeight: '1.5' }}>{t.descripcion}</p>
+                  
+                  <div style={{ display: 'flex', gap: '20px', fontSize: '11px', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    <span>OPERADOR: <strong style={{ color: '#a1a1aa' }}>{t.guardia?.nombre}</strong></span>
+                    <span>PRIORIDAD: <strong style={{ color: t.prioridad === 'URGENTE' ? '#ef4444' : '#a1a1aa' }}>{t.prioridad}</strong></span>
+                  </div>
 
-                  return (
-                    <div key={t.id} style={{ background: '#121214', padding: '20px', borderRadius: '8px', border: borderPrioridad, backgroundColor: bgPrioridad }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <h4 style={{ margin: 0, fontSize: '16px', color: '#fff', fontWeight: '600' }}>{t.zona}</h4>
-                            <span style={{ fontSize: '10px', color: '#71717a', backgroundColor: '#18181b', padding: '2px 6px', borderRadius: '4px', border: '1px solid #27272a' }}>ID: #{t.id}</span>
-                            {t.prioridad === 'URGENTE' && <span style={{ backgroundColor: '#ef4444', color: '#fff', fontSize: '9px', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px' }}>ALERTA CRÍTICA</span>}
-                          </div>
-                          <p style={{ margin: '8px 0', fontSize: '14px', color: '#d4d4d8', lineHeight: '1.5' }}>{t.descripcion}</p>
-                          <p style={{ margin: 0, fontSize: '12px', color: '#71717a' }}>Fuerza Desplegada: <strong style={{ color: '#a1a1aa' }}>{t.guardia?.nombre || 'Sin asignar'}</strong></p>
-                        </div>
-                        
-                        <span style={{ fontSize: '11px', fontWeight: '700', color: colorEstado, border: `1px solid ${colorEstado}`, padding: '4px 10px', borderRadius: '4px', textTransform: 'uppercase', letterSpacing: '0.5px', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-                          {t.estado === 'EN_REVISION' ? 'EN REVISIÓN' : t.estado}
-                        </span>
-                      </div>
-
-                      {/* INFORME DE EVIDENCIA EN TEXTO */}
-                      {t.evidencia && (
-                        <div style={{ marginTop: '15px', background: '#09090b', border: '1px solid #27272a', borderRadius: '6px', padding: '15px' }}>
-                          <span style={{ fontSize: '11px', color: '#facc15', fontWeight: 'bold', display: 'block', textTransform: 'uppercase', marginBottom: '4px' }}>Evidencia Digital Transmitida:</span>
-                          <p style={{ margin: 0, fontSize: '13px', color: '#a1a1aa', fontStyle: 'italic' }}>"{t.evidencia}"</p>
-                        </div>
-                      )}
-
-                      {/* PANEL DE VALIDACIÓN */}
-                      {t.estado === 'EN_REVISION' && (
-                        <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #27272a' }}>
-                          <input 
-                            type="text" 
-                            placeholder="Escriba un veredicto u observación de la validación..." 
-                            value={obsSupervisor[t.id] || ''} 
-                            onChange={e => setObsSupervisor({ ...obsSupervisor, [t.id]: e.target.value })}
-                            style={{ width: '100%', padding: '10px', background: '#18181b', border: '1px solid #27272a', borderRadius: '6px', color: '#fff', marginBottom: '12px', boxSizing: 'border-box', fontSize: '13px' }}
-                          />
-                          <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => dictaminarTarea(t.id, 'APROBADA')} style={{ padding: '8px 16px', backgroundColor: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>Aprobar y Registrar</button>
-                            <button onClick={() => dictaminarTarea(t.id, 'RECHAZADA')} style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>Rechazar Falla</button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* NOTAS DE AUDITORÍA */}
-                      {t.observacion && (
-                        <div style={{ marginTop: '12px', padding: '10px 12px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '4px', fontSize: '12px', color: '#10b981' }}>
-                          <strong>Resolución de Central:</strong> {t.observacion}
-                        </div>
-                      )}
+                  {t.evidencia && (
+                    <div style={{ marginTop: '16px', background: '#09090b', padding: '16px', borderRadius: '4px', border: '1px solid #232326' }}>
+                      <span style={{ fontSize: '10px', color: '#eab308', fontWeight: 700, display: 'block', marginBottom: '8px', letterSpacing: '0.5px' }}>DECLARACIÓN ADJUNTADA DE TERRENO:</span>
+                      <p style={{ margin: '0 0 14px 0', fontSize: '13px', fontStyle: 'italic', color: '#e4e4e7', lineHeight: '1.4' }}>"{t.evidencia}"</p>
+                      {t.fotoUrl && <img src={t.fotoUrl} alt="Registro Perimetral" style={{ maxWidth: '280px', borderRadius: '4px', border: '1px solid #232326', display: 'block', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }} />}
                     </div>
-                  );
-                })
-              )}
+                  )}
+
+                  {t.estado === 'EN_REVISION' && (
+                    <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #232326' }}>
+                      <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>OBSERVACIÓN DE EVALUACIÓN DE CENTRAL</label>
+                      <input type="text" placeholder="Ingrese las causales técnicas antes de dictaminar..." value={obsSupervisor[t.id] || ''} onChange={e => setObsSupervisor({ ...obsSupervisor, [t.id]: e.target.value })} className="form-control-sip" style={{ marginBottom: '12px' }} />
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        <button onClick={() => dictaminarTarea(t.id, 'APROBADA')} style={{ padding: '8px 16px', backgroundColor: '#22c55e', color: '#000000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700, fontSize: '11px', letterSpacing: '0.5px' }}>APROBAR REGISTRO</button>
+                        <button onClick={() => dictaminarTarea(t.id, 'RECHAZADA')} style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: '#ffffff', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 700, fontSize: '11px', letterSpacing: '0.5px' }}>DEVOLVER A TERRENO</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* ROL: GUARDIA (SIMULADOR DE TERMINAL MÓVIL) */}
+      {/* INTERFAZ DEL GUARDIA (DISEÑO MÓVIL ESTRICTO / TERMINAL TÁCTICO) */}
       {usuario.rol === 'GUARDIA' && (
-        <div style={{ maxWidth: '650px', margin: '0 auto' }}>
-          <div style={{ background: '#18181b', border: '1px solid #facc15', padding: '15px', borderRadius: '8px', marginBottom: '30px', textAlign: 'center' }}>
-            <p style={{ margin: 0, fontSize: '13px', color: '#facc15', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-              TERMINAL PORTÁTIL DE SIMULACIÓN MÓVIL
-            </p>
-            <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#a1a1aa' }}>Use este entorno si está evaluando el flujo sin el celular físico conectado.</p>
-          </div>
+        <div style={{ maxWidth: '460px', margin: '0 auto', background: '#121214', padding: '24px', borderRadius: '6px', border: '1px solid #232326', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+          <h3 style={{ margin: '0 0 20px 0', fontSize: '11px', textAlign: 'center', color: '#eab308', letterSpacing: '1px', fontWeight: 700 }}>TERMINAL OPERATIVO DE CONEXIÓN</h3>
           
-          <h3 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: '600' }}>Rondas y Asignaciones Vigentes</h3>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {tareas.filter(t => t.guardia?.id === usuario.id).length === 0 ? (
-              <div style={{ border: '1px dashed #27272a', padding: '50px', borderRadius: '8px', textAlign: 'center', color: '#71717a' }}>
-                No registra órdenes de patrullaje pendientes a su nombre.
-              </div>
-            ) : (
-              tareas.filter(t => t.guardia?.id === usuario.id).map(t => (
-                <div key={t.id} style={{ background: '#121214', padding: '25px', borderRadius: '8px', border: t.prioridad === 'URGENTE' ? '1px solid #ef4444' : '1px solid #27272a' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '15px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px', color: '#71717a', fontWeight: 'bold' }}>SECTOR ASIGNADO</span>
-                    <span style={{ fontSize: '11px', padding: '3px 8px', borderRadius: '4px', background: '#09090b', color: '#facc15', border: '1px solid #27272a', fontWeight: 'bold' }}>{t.estado}</span>
-                  </div>
-                  
-                  <h4 style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#fff', fontWeight: '600' }}>{t.zona}</h4>
-                  <p style={{ fontSize: '14px', color: '#d4d4d8', margin: '0 0 20px 0', lineHeight: '1.5', background: '#09090b', padding: '12px', borderRadius: '6px', border: '1px solid #18181b' }}>
-                    <strong style={{ color: '#facc15', display: 'block', fontSize: '11px', marginBottom: '4px', textTransform: 'uppercase' }}>Instrucción de la Central:</strong>
-                    {t.descripcion}
-                  </p>
-                  
-                  {t.estado === 'PENDIENTE' && (
-                    <div style={{ background: '#18181b', padding: '15px', borderRadius: '6px', border: '1px solid #27272a' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#a1a1aa', textTransform: 'uppercase', marginBottom: '6px' }}>Bitácora de Cumplimiento (Evidencia escrita):</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ej: Candados verificados conforme. Sin novedades en el sector." 
-                        value={comentarioGuardia[t.id] || ''} 
-                        onChange={e => setComentarioGuardia({ ...comentarioGuardia, [t.id]: e.target.value })}
-                        style={{ width: '100%', padding: '12px', background: '#09090b', border: '1px solid #27272a', borderRadius: '6px', color: '#fff', boxSizing: 'border-box', marginBottom: '12px', fontSize: '14px' }}
-                      />
-                      <button onClick={() => enviarEvidenciaDesdeWeb(t.id)} style={{ width: '100%', padding: '12px', backgroundColor: '#facc15', color: '#000', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', textTransform: 'uppercase' }}>
-                        Transmitir Evidencia de Terreno
-                      </button>
-                    </div>
-                  )}
-
-                  {t.observacion && (
-                    <div style={{ marginTop: '15px', padding: '10px', background: '#09090b', borderRadius: '6px', fontSize: '12px', borderLeft: '3px solid #facc15' }}>
-                      <strong>Feedback Central de Mando:</strong> <span style={{ color: '#a1a1aa' }}>{t.observacion}</span>
-                    </div>
-                  )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {tareas.filter(t => t.guardia?.id === usuario.id).map(t => (
+              <div key={t.id} style={{ background: '#09090b', padding: '16px', borderRadius: '4px', border: '1px solid #232326' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#ffffff', letterSpacing: '0.5px' }}>{t.zona.toUpperCase()}</span>
+                  <span className="code-ref">ID-{t.id}</span>
                 </div>
-              ))
-            )}
+                <p style={{ margin: '0 0 14px 0', fontSize: '13px', color: '#d4d4d8', lineHeight: '1.4' }}>{t.descripcion}</p>
+
+                {t.observacion && t.estado === 'PENDIENTE' && (
+                  <div style={{ marginBottom: '14px', padding: '12px', background: 'rgba(239, 68, 68, 0.04)', borderLeft: '3px solid #ef4444', borderRadius: '2px', fontSize: '12px' }}>
+                    <strong style={{ color: '#ef4444', display: 'block', fontSize: '10px', marginBottom: '4px', letterSpacing: '0.5px' }}>RECHAZADO POR CENTRAL:</strong>
+                    <span style={{ color: '#f4f4f5', fontStyle: 'italic', lineHeight: '1.4' }}>{t.observacion}</span>
+                  </div>
+                )}
+
+                {t.estado === 'PENDIENTE' ? (
+                  <div style={{ marginTop: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '10px', color: '#71717a', marginBottom: '6px', fontWeight: 600, letterSpacing: '0.5px' }}>REPORTE ESCRITO DE HALLAZGOS</label>
+                    <textarea placeholder="Ingrese la glosa técnica según el protocolo..." value={comentarioGuardia[t.id] || ''} onChange={e => setComentarioGuardia({ ...comentarioGuardia, [t.id]: e.target.value })} className="form-control-sip" style={{ height: '70px', resize: 'none', marginBottom: '12px', fontFamily: 'inherit' }} />
+                    
+                    <input type="file" accept="image/*" ref={el => fileInputRef.current[t.id] = el} onChange={e => capturarFotoNativa(e, t.id)} style={{ display: 'none' }} />
+                    
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '12px' }}>
+                      <button onClick={() => fileInputRef.current[t.id]?.click()} style={{ flex: 1, padding: '10px', background: '#161619', color: '#ffffff', border: '1px solid #27272a', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', fontWeight: 600, letterSpacing: '0.5px', transition: 'all 0.2s' }}>
+                        {imagenBase64[t.id] ? '✓ ARCHIVO ADJUNTADO' : 'SELECCIONAR REGISTRO FOTOGRÁFICO'}
+                      </button>
+                      {imagenBase64[t.id] && (
+                        <button onClick={() => setImagenBase64(p => ({ ...p, [t.id]: '' }))} style={{ padding: '10px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>BORRAR</button>
+                      )}
+                    </div>
+
+                    <button onClick={() => enviarEvidenciaDesdeWeb(t.id)} className="btn-primary-sip">TRANSMITIR REPORTE DE INSPECCIÓN</button>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '10px', background: '#161619', borderRadius: '4px', fontSize: '11px', color: '#a1a1aa', fontWeight: 600, letterSpacing: '0.5px', border: '1px solid #232326' }}>
+                    {t.estado === 'EN_REVISION' ? 'TRANSMISIÓN ENVIADA — EVALUACIÓN EN CURSO' : 'REGISTRO APROBADO Y ARCHIVADO'}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
