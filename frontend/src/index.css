@@ -1,103 +1,290 @@
-/* Estilo Base del Sistema Operativo */
+:root {
+  /* Cambio de Paleta: Look de Terminal de Seguridad Negro y Amarillo */
+  --bg: #09090b;          /* Negro profundo industrial */
+  --surface: #121214;     /* Gris carbón para contenedores */
+  --surface-2: #161619;   /* Fondo de inputs y elementos secundarios */
+  --border: #232326;      /* Micro-separaciones oscuras */
+  --text: #f4f4f5;        /* Blanco suave de alta lectura */
+  --muted: #71717a;       /* Gris para metadatos */
+  --primary: #eab308;     /* Amarillo Técnico de Alta Visibilidad (S.I. Protection) */
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #eab308;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  background-color: #09090b;
-  color: #f4f4f5;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbars Tácticas */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
-::-webkit-scrollbar-track {
-  background: #09090b;
-}
+
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: var(--border);
+  border-radius: 20px;
 }
 
-/* Efectos de Foco y Formulario Pro */
+.app-layout {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+}
+
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.sidebar-logo {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--primary);
+  margin-bottom: 40px;
+  text-transform: uppercase;
+}
+
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  text-align: left;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.sidebar-btn:hover {
+  background: var(--surface-2);
+  color: white;
+}
+
+.main-content {
+  padding: 30px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 25px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  margin-top: 8px;
+  color: #fff;
+}
+
+.section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 20px;
+}
+
 .form-control-sip {
   width: 100%;
   padding: 12px;
-  background-color: #121214;
-  border: 1px solid #27272a;
-  border-radius: 4px;
-  color: #ffffff;
-  font-size: 13px;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: white;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
 }
 
 .form-control-sip:focus {
   outline: none;
-  border-color: #eab308;
-  box-shadow: 0 0 8px rgba(234, 179, 8, 0.15);
-  background-color: #161619;
+  border-color: var(--primary);
+  box-shadow: 0 0 8px rgba(234, 179, 8, 0.1);
 }
 
-/* Botones con Transiciones Dinámicas */
 .btn-primary-sip {
-  width: 100%;
-  padding: 12px;
-  background-color: #eab308;
-  color: #000000;
+  background: var(--primary);
   border: none;
-  border-radius: 4px;
+  color: #000000; /* Texto negro sobre fondo amarillo para legibilidad de grado */
+  padding: 12px 20px;
+  border-radius: 6px;
+  cursor: pointer;
   font-weight: 700;
   font-size: 12px;
   letter-spacing: 0.5px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  text-transform: uppercase;
+  transition: background 0.2s ease;
 }
 
 .btn-primary-sip:hover {
   background-color: #ca8a04;
-  box-shadow: 0 0 12px rgba(234, 179, 8, 0.3);
-  transform: translateY(-1px);
 }
 
-.btn-primary-sip:active {
-  transform: translateY(0);
+.tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 20px;
 }
 
-/* Tarjetas de Bitácora de Alta Densidad */
-.card-sip {
-  background: #121214;
+.task-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   padding: 20px;
-  border-radius: 6px;
-  border: 1px solid #232326;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-.card-sip:hover {
-  border-color: #3f3f46;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+.task-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
 }
 
-.card-urgent-sip {
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  box-shadow: inset 0 0 8px rgba(239, 68, 68, 0.05);
+.task-zone {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+  margin-bottom: 12px;
 }
 
-.card-urgent-sip:hover {
-  border-color: #ef4444;
-  box-shadow: 0 4px 20px rgba(239, 68, 68, 0.15);
+.badge {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
-/* Códigos Ref Monoespaciados */
-.code-ref {
-  font-family: 'Courier New', Courier, monospace;
-  background: #161619;
-  padding: 2px 6px;
-  border-radius: 3px;
-  border: 1px solid #27272a;
-  color: #a1a1aa;
+.badge-pending { background: rgba(234, 179, 8, 0.1); color: var(--primary); }
+.badge-review { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+.badge-approved { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+.badge-rejected { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--bg);
+}
+
+.login-card {
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 40px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+/* REQUERIMIENTO: OPTIMIZACIÓN EXCLUSIVA PARA EL CELULAR DEL GUARDIA */
+@media(max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+    padding: 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media(max-width: 768px) {
+  /* Reestructuración para smartphones de operadores en terreno */
+  .main-content {
+    padding: 16px;
+  }
+  
+  .tasks-grid {
+    grid-template-columns: 1fr; /* Una sola columna fluida vertical */
+  }
+
+  .form-control-sip, .btn-primary-sip {
+    font-size: 15px; /* Evita zooms automáticos e incómodos en navegadores móviles */
+    padding: 14px;
+  }
+
+  .task-card {
+    border-radius: 6px;
+    padding: 16px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
 }
