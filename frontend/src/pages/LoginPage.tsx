@@ -1,97 +1,128 @@
 import { useState } from 'react'
-
 import { IconHexagon } from '../components/Icons'
+import apiClient from '../api/client'
+import { Usuario } from '../types/Usuario'
 
 interface Props {
-  email: string; password: string
-  setEmail: (v: string) => void; setPassword: (v: string) => void
-  loginError: string; handleLogin: (e: React.FormEvent) => void
+  onLogin: (u: Usuario) => void
 }
 
-export default function LoginPage({ email, password, setEmail, setPassword, loginError, handleLogin }: Props) {
+export default function LoginPage({ onLogin }: Props) {
+  const [email,    setEmail]    = useState('')
+  const [password, setPassword] = useState('')
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
 
-  // Oculta el error cuando el usuario empieza a modificar los campos
-  const [errorVisible, setErrorVisible] = useState(true)
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const res = await apiClient.post<{
+        token: string
+        id: number
+        nombre: string
+        email: string
+        role: string
+      }>('/login', { email, contrasena: password })
 
-  const handleEmailChange = (v: string) => {
-    setEmail(v)
-    setErrorVisible(false)
-  }
-
-  const handlePasswordChange = (v: string) => {
-    setPassword(v)
-    setErrorVisible(false)
-  }
-
-  const handleSubmit = (e: React.FormEvent) => {
-    setErrorVisible(true)
-    handleLogin(e)
+      localStorage.setItem('token', res.data.token)
+      const u: Usuario = {
+        id:     res.data.id,
+        nombre: res.data.nombre,
+        email:  res.data.email,
+        rol:    res.data.role as 'SUPERVISOR' | 'GUARDIA',
+      }
+      localStorage.setItem('usuario', JSON.stringify(u))
+      onLogin(u)
+    } catch {
+      setError('Credenciales incorrectas. Verifica tu email y contrasena.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="login-container">
-      <div className="login-panel">
-        <div className="login-panel-grid" />
-        <div className="login-panel-icon"><IconHexagon size={28} color="var(--primary)" /></div>
-        <h1 className="login-panel-title">Centro de<br />Supervisión</h1>
-        <p className="login-panel-sub">Sistema unificado de asignación<br />y validación de tareas operativas.</p>
-        <div className="login-panel-stats">
-          {[
-            { label: 'Operación',  value: '24 / 7' },
-            { label: 'Cobertura', value: 'R. Biobío' },
-            { label: 'Versión',   value: 'v1.0.0' },
-          ].map(s => (
-            <div className="login-panel-stat" key={s.label}>
-              <div className="login-panel-stat-label">{s.label}</div>
-              <div className="login-panel-stat-value">{s.value}</div>
-            </div>
-          ))}
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg)',
+      padding: 24,
+    }}>
+      <div style={{ width: '100%', maxWidth: 400, display: 'flex', flexDirection: 'column', gap: 28 }}>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <IconHexagon size={28} color="var(--primary)" />
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>S.I. Protection</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Sistema de Supervision Operativa</div>
+          </div>
         </div>
-      </div>
 
-      <div className="login-form-panel">
-        <form className="login-card" onSubmit={handleSubmit}>
-          <div className="login-badge">S.I. PROTECTION</div>
-          <h2 className="login-title">Acceso al sistema</h2>
-          <p className="login-sub">Ingresa tus credenciales para continuar</p>
-
-          <div className="field">
-            <label className="field-label">Correo electrónico</label>
-            <input
-              type="email" required
-              className="form-control-sip"
-              placeholder="usuario@sip.cl"
-              value={email}
-              onChange={e => handleEmailChange(e.target.value)}
-            />
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '20px 28px 16px', borderBottom: '1px solid var(--border)' }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0 }}>Acceso al sistema</h2>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '4px 0 0' }}>Ingresa tus credenciales para continuar</p>
           </div>
 
-          <div className="field">
-            <label className="field-label">Contraseña</label>
-            <input
-              type="password" required
-              className="form-control-sip"
-              placeholder="••••••••••"
-              value={password}
-              onChange={e => handlePasswordChange(e.target.value)}
-            />
-          </div>
+          <form onSubmit={handleSubmit} style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-          {/* Error permanente hasta que se modifique email o password */}
-          {loginError && errorVisible && (
-            <div className="login-error">
-              {loginError}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', letterSpacing: '.04em' }}>
+                Correo electronico
+              </label>
+              <input
+                type="email"
+                required
+                className="form-control-sip"
+                placeholder="usuario@sip.cl"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setError('') }}
+              />
             </div>
-          )}
 
-          <button type="submit" className="btn-primary-sip" style={{ width: '100%', padding: 12 }}>
-            Ingresar
-          </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)', letterSpacing: '.04em' }}>
+                Contrasena
+              </label>
+              <input
+                type="password"
+                required
+                className="form-control-sip"
+                placeholder="••••••••••"
+                value={password}
+                onChange={e => { setPassword(e.target.value); setError('') }}
+              />
+            </div>
 
-          <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.6 }}>
-            Uso exclusivo para personal autorizado de S.I. Protection.
-          </p>
-        </form>
+            {error && (
+              <div style={{
+                padding: '10px 14px',
+                background: 'var(--red-dim)',
+                border: '1px solid rgba(239,68,68,.2)',
+                borderRadius: 8,
+                color: 'var(--red)',
+                fontSize: 13,
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary-sip"
+              style={{ width: '100%', padding: 12, marginTop: 4 }}
+            >
+              {loading ? 'Verificando...' : 'Ingresar'}
+            </button>
+          </form>
+        </div>
+
+        <p style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
+          Uso exclusivo para personal autorizado de S.I. Protection.
+        </p>
       </div>
     </div>
   )

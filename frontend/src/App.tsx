@@ -21,42 +21,31 @@ interface Toast  { mensaje: string; tipo: TipoToast }
 
 export default function App() {
 
-  // ── Sesión ────────────────────────────────────────────────────────────────
   const [usuario, setUsuario] = useState<Usuario | null>(() => {
     const s = localStorage.getItem('usuario')
     return s ? JSON.parse(s) : null
   })
   const [vista, setVista] = useState<Vista>('dashboard')
 
-  // ── Datos del sistema ─────────────────────────────────────────────────────
   const [guardias, setGuardias] = useState<Usuario[]>([])
   const [tareas,   setTareas]   = useState<Tarea[]>([])
 
-  // ── Form nueva tarea ──────────────────────────────────────────────────────
   const [nuevaZona,         setNuevaZona]         = useState('')
   const [nuevaDesc,         setNuevaDesc]         = useState('')
   const [nuevaPrioridad,    setNuevaPrioridad]    = useState<'NORMAL' | 'URGENTE'>('NORMAL')
   const [guardiaAsignadoId, setGuardiaAsignadoId] = useState('')
   const [obsSupervisor,     setObsSupervisor]     = useState<Record<number, string>>({})
 
-  // ── Form evidencia guardia ────────────────────────────────────────────────
   const [comentarioGuardia, setComentarioGuardia] = useState<Record<number, string>>({})
   const [imagenBase64,      setImagenBase64]      = useState<Record<number, string>>({})
   const fileInputRef = useRef<Record<number, HTMLInputElement | null>>({})
 
-  // ── Login ─────────────────────────────────────────────────────────────────
-  const [loginEmail,    setLoginEmail]    = useState('')
-  const [loginPassword, setLoginPassword] = useState('')
-  const [loginError,    setLoginError]    = useState('')
-
-  // ── Notificaciones ────────────────────────────────────────────────────────
   const [toast, setToast] = useState<Toast | null>(null)
   const mostrar = (mensaje: string, tipo: TipoToast = 'exito') => {
     setToast({ mensaje, tipo })
     setTimeout(() => setToast(null), 4000)
   }
 
-  // ── Carga de datos ────────────────────────────────────────────────────────
   const cargarDatosSistema = useCallback(async () => {
     if (!usuario) return
     try {
@@ -76,31 +65,20 @@ export default function App() {
     return () => clearInterval(iv)
   }, [usuario, cargarDatosSistema])
 
-  // ── Login ─────────────────────────────────────────────────────────────────
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoginError('')
-    try {
-      const res = await apiClient.post<{
-        token: string; id: number; nombre: string; email: string; role: string
-      }>('/login', { email: loginEmail, contrasena: loginPassword })
-      localStorage.setItem('token', res.data.token)
-      const u: Usuario = { id: res.data.id, nombre: res.data.nombre, email: res.data.email, rol: res.data.role as 'SUPERVISOR' | 'GUARDIA' }
-      localStorage.setItem('usuario', JSON.stringify(u))
-      setUsuario(u)
-      mostrar('Sesión iniciada correctamente.')
-    } catch {
-      setLoginError('Credenciales incorrectas.')
-    }
+  // Login lo maneja el propio LoginPage — aqui solo recibimos el usuario ya autenticado
+  const handleLogin = (u: Usuario) => {
+    setUsuario(u)
+    mostrar('Sesion iniciada correctamente.')
   }
 
-  // ── Logout ────────────────────────────────────────────────────────────────
   const logout = () => {
     localStorage.clear()
-    setUsuario(null); setTareas([]); setGuardias([]); setVista('dashboard')
+    setUsuario(null)
+    setTareas([])
+    setGuardias([])
+    setVista('dashboard')
   }
 
-  // ── Crear tarea ───────────────────────────────────────────────────────────
   const crearOrdenTrabajo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nuevaZona || !nuevaDesc || !guardiaAsignadoId || !usuario) return
@@ -109,16 +87,21 @@ export default function App() {
         zona: nuevaZona, descripcion: nuevaDesc, prioridad: nuevaPrioridad,
         guardiaId: Number(guardiaAsignadoId), supervisorId: usuario.id,
       })
-      setNuevaZona(''); setNuevaDesc(''); setGuardiaAsignadoId(''); setNuevaPrioridad('NORMAL')
+      setNuevaZona('')
+      setNuevaDesc('')
+      setGuardiaAsignadoId('')
+      setNuevaPrioridad('NORMAL')
       mostrar('Tarea asignada correctamente.')
       cargarDatosSistema()
-    } catch { mostrar('Error al crear la tarea.', 'error') }
+    } catch {
+      mostrar('Error al crear la tarea.', 'error')
+    }
   }
 
-  // ── Validar tarea ─────────────────────────────────────────────────────────
   const dictaminarTarea = async (tareaId: number, estado: 'APROBADA' | 'RECHAZADA') => {
     if (estado === 'RECHAZADA' && !obsSupervisor[tareaId]?.trim()) {
-      mostrar('Ingresa una observación para rechazar.', 'alerta'); return
+      mostrar('Ingresa una observacion para rechazar.', 'alerta')
+      return
     }
     try {
       const payload: ValidarTareaPayload = { estado, observacion: obsSupervisor[tareaId] }
@@ -126,26 +109,31 @@ export default function App() {
       mostrar(estado === 'APROBADA' ? 'Tarea aprobada.' : 'Tarea devuelta al guardia.')
       setObsSupervisor(prev => { const s = { ...prev }; delete s[tareaId]; return s })
       cargarDatosSistema()
-    } catch { mostrar('Error al validar la tarea.', 'error') }
+    } catch {
+      mostrar('Error al validar la tarea.', 'error')
+    }
   }
 
-  // ── Cerrar turno ──────────────────────────────────────────────────────────
   const clausurarTurnoOperativo = async () => {
-    if (!window.confirm('¿Cerrar el turno y descargar el informe PDF?')) return
+    if (!window.confirm('Cerrar el turno y descargar el informe PDF?')) return
     try {
       const res = await apiClient.post('/turnos/cerrar', {}, { responseType: 'blob' })
       const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
       const link = document.createElement('a')
-      link.href = url; link.download = `informe_turno_${Date.now()}.pdf`; link.click()
+      link.href = url
+      link.download = 'informe_turno_' + Date.now() + '.pdf'
+      link.click()
       URL.revokeObjectURL(url)
       mostrar('Turno cerrado. Informe descargado.')
       cargarDatosSistema()
-    } catch { mostrar('Error al cerrar el turno.', 'error') }
+    } catch {
+      mostrar('Error al cerrar el turno.', 'error')
+    }
   }
 
-  // ── Evidencia ─────────────────────────────────────────────────────────────
   const capturarFotoNativa = (e: React.ChangeEvent<HTMLInputElement>, tareaId: number) => {
-    const file = e.target.files?.[0]; if (!file) return
+    const file = e.target.files?.[0]
+    if (!file) return
     const reader = new FileReader()
     reader.onloadend = () => setImagenBase64(prev => ({ ...prev, [tareaId]: reader.result as string }))
     reader.readAsDataURL(file)
@@ -155,7 +143,7 @@ export default function App() {
     const comentario = comentarioGuardia[tareaId]
     const foto       = imagenBase64[tareaId]
     if (!comentario?.trim()) { mostrar('Ingresa el informe escrito.', 'alerta'); return }
-    if (!foto)               { mostrar('Adjunta una fotografía.', 'alerta');     return }
+    if (!foto)               { mostrar('Adjunta una fotografia.', 'alerta');     return }
     try {
       const payload: EvidenciaPayload = { tareaId, comentario, fotoBase64: foto }
       await apiClient.post('/evidencias', payload)
@@ -163,18 +151,13 @@ export default function App() {
       setImagenBase64(prev =>      { const s = { ...prev }; delete s[tareaId]; return s })
       mostrar('Evidencia enviada al supervisor.')
       cargarDatosSistema()
-    } catch { mostrar('Error al enviar la evidencia.', 'error') }
+    } catch {
+      mostrar('Error al enviar la evidencia.', 'error')
+    }
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   if (!usuario) {
-    return (
-      <LoginPage
-        email={loginEmail} password={loginPassword}
-        setEmail={setLoginEmail} setPassword={setLoginPassword}
-        loginError={loginError} handleLogin={handleLogin}
-      />
-    )
+    return <LoginPage onLogin={handleLogin} />
   }
 
   return (
@@ -188,7 +171,6 @@ export default function App() {
 
       <div className="main-content">
 
-        {/* ── Vistas del SUPERVISOR ── */}
         {usuario.rol === 'SUPERVISOR' && vista === 'dashboard' && (
           <SupervisorDashboard
             guardias={guardias} tareas={tareas}
@@ -200,7 +182,7 @@ export default function App() {
             obsSupervisor={obsSupervisor} setObsSupervisor={setObsSupervisor}
             dictaminarTarea={dictaminarTarea}
             clausurarTurnoOperativo={clausurarTurnoOperativo}
-            onGestionGuardias={()   => setVista('guardias')}
+            onGestionGuardias={() => setVista('guardias')}
             onHistorial={() => setVista('historial')}
             onIncidencias={() => setVista('incidencias')}
           />
@@ -225,11 +207,10 @@ export default function App() {
           <PerfilSupervisor
             usuario={usuario}
             onVolver={() => setVista('dashboard')}
-            onActualizado={u => { setUsuario(u) }}
+            onActualizado={u => setUsuario(u)}
           />
         )}
 
-        {/* ── Vista del GUARDIA ── */}
         {usuario.rol === 'GUARDIA' && (
           <GuardiaDashboard
             tareas={tareas} usuarioId={usuario.id}
