@@ -22,7 +22,7 @@ Permite al supervisor asignar tareas al personal de seguridad desde la sala de m
 
 ```bash
 # 1. Clonar el repositorio
-git clone https://github.com/TU_USUARIO/sip-supervision.git
+git clone https://github.com/carlosss12/sip-supervision-docker.git
 
 # 2. Ingresar al directorio
 cd sip-supervision
