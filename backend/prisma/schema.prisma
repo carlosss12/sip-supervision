@@ -26,9 +26,21 @@ enum EstadoTarea {
 }
 
 enum TurnoGuardia {
-  MANANA   // 06:00 - 14:00
-  TARDE    // 14:00 - 22:00
-  NOCHE    // 22:00 - 06:00
+  MANANA
+  TARDE
+  NOCHE
+}
+
+enum GravedadIncidencia {
+  LEVE
+  MEDIA
+  GRAVE
+}
+
+enum EstadoIncidencia {
+  ABIERTA
+  EN_GESTION
+  CERRADA
 }
 
 model Usuario {
@@ -39,12 +51,13 @@ model Usuario {
   rol       Rol
   rut       String?       @unique
   telefono  String?
-  turno     TurnoGuardia?  // solo aplica para GUARDIA
+  turno     TurnoGuardia?
   activo    Boolean       @default(true)
   creadoEn  DateTime      @default(now())
 
-  tareasCreadas   Tarea[] @relation("TareasCreadas")
-  tareasAsignadas Tarea[] @relation("TareasAsignadas")
+  tareasCreadas      Tarea[]      @relation("TareasCreadas")
+  tareasAsignadas    Tarea[]      @relation("TareasAsignadas")
+  incidenciasCreadas Incidencia[] @relation("IncidenciasCreadas")
 
   @@map("usuarios")
 }
@@ -79,4 +92,21 @@ model Tarea {
   guardiaId    Int
 
   @@map("tareas")
+}
+
+model Incidencia {
+  id          Int                @id @default(autoincrement())
+  titulo      String             @db.VarChar(150)
+  descripcion String             @db.Text
+  zona        String             @db.VarChar(100)
+  gravedad    GravedadIncidencia @default(LEVE)
+  estado      EstadoIncidencia   @default(ABIERTA)
+  resolucion  String?            @db.Text
+  creadaEn    DateTime           @default(now())
+  cerradaEn   DateTime?
+
+  supervisor   Usuario @relation("IncidenciasCreadas", fields: [supervisorId], references: [id], onDelete: Cascade)
+  supervisorId Int
+
+  @@map("incidencias")
 }

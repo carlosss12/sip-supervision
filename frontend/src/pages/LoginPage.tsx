@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 interface Props {
   email: string; password: string
   setEmail: (v: string) => void; setPassword: (v: string) => void
@@ -5,6 +7,25 @@ interface Props {
 }
 
 export default function LoginPage({ email, password, setEmail, setPassword, loginError, handleLogin }: Props) {
+
+  // Oculta el error cuando el usuario empieza a modificar los campos
+  const [errorVisible, setErrorVisible] = useState(true)
+
+  const handleEmailChange = (v: string) => {
+    setEmail(v)
+    setErrorVisible(false)
+  }
+
+  const handlePasswordChange = (v: string) => {
+    setPassword(v)
+    setErrorVisible(false)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    setErrorVisible(true)
+    handleLogin(e)
+  }
+
   return (
     <div className="login-container">
       <div className="login-panel">
@@ -27,26 +48,39 @@ export default function LoginPage({ email, password, setEmail, setPassword, logi
       </div>
 
       <div className="login-form-panel">
-        <form className="login-card" onSubmit={handleLogin}>
+        <form className="login-card" onSubmit={handleSubmit}>
           <div className="login-badge">S.I. PROTECTION</div>
           <h2 className="login-title">Acceso al sistema</h2>
           <p className="login-sub">Ingresa tus credenciales para continuar</p>
 
           <div className="field">
             <label className="field-label">Correo electrónico</label>
-            <input type="email" required className="form-control-sip"
-              placeholder="usuario@sip.cl" value={email}
-              onChange={e => setEmail(e.target.value)} />
+            <input
+              type="email" required
+              className="form-control-sip"
+              placeholder="usuario@sip.cl"
+              value={email}
+              onChange={e => handleEmailChange(e.target.value)}
+            />
           </div>
 
           <div className="field">
             <label className="field-label">Contraseña</label>
-            <input type="password" required className="form-control-sip"
-              placeholder="••••••••••" value={password}
-              onChange={e => setPassword(e.target.value)} />
+            <input
+              type="password" required
+              className="form-control-sip"
+              placeholder="••••••••••"
+              value={password}
+              onChange={e => handlePasswordChange(e.target.value)}
+            />
           </div>
 
-          {loginError && <div className="login-error">⚠ {loginError}</div>}
+          {/* Error permanente hasta que se modifique email o password */}
+          {loginError && errorVisible && (
+            <div className="login-error">
+              ⚠ {loginError}
+            </div>
+          )}
 
           <button type="submit" className="btn-primary-sip" style={{ width: '100%', padding: 12 }}>
             Ingresar

@@ -8,13 +8,16 @@ import LoginPage           from './pages/LoginPage'
 import SupervisorDashboard from './pages/SupervisorDashboard'
 import GuardiaDashboard    from './pages/GuardiaDashboard'
 import GestionGuardias     from './pages/GestionGuardias'
+import HistorialTurnos     from './pages/HistorialTurnos'
+import Incidencias         from './pages/Incidencias'
+import PerfilSupervisor    from './pages/PerfilSupervisor'
 
 import { Usuario }                                      from './types/Usuario'
 import { Tarea, EvidenciaPayload, ValidarTareaPayload } from './types/Tarea'
 
 type TipoToast = 'exito' | 'error' | 'alerta'
-type Vista      = 'dashboard' | 'guardias'
-interface Toast { mensaje: string; tipo: TipoToast }
+type Vista      = 'dashboard' | 'guardias' | 'historial' | 'incidencias' | 'perfil'
+interface Toast  { mensaje: string; tipo: TipoToast }
 
 export default function App() {
 
@@ -34,11 +37,9 @@ export default function App() {
   const [nuevaDesc,         setNuevaDesc]         = useState('')
   const [nuevaPrioridad,    setNuevaPrioridad]    = useState<'NORMAL' | 'URGENTE'>('NORMAL')
   const [guardiaAsignadoId, setGuardiaAsignadoId] = useState('')
+  const [obsSupervisor,     setObsSupervisor]     = useState<Record<number, string>>({})
 
-  // ── Form validación ───────────────────────────────────────────────────────
-  const [obsSupervisor, setObsSupervisor] = useState<Record<number, string>>({})
-
-  // ── Form evidencia ────────────────────────────────────────────────────────
+  // ── Form evidencia guardia ────────────────────────────────────────────────
   const [comentarioGuardia, setComentarioGuardia] = useState<Record<number, string>>({})
   const [imagenBase64,      setImagenBase64]      = useState<Record<number, string>>({})
   const fileInputRef = useRef<Record<number, HTMLInputElement | null>>({})
@@ -61,8 +62,6 @@ export default function App() {
     try {
       const rTareas = await apiClient.get<Tarea[]>('/tareas')
       setTareas(rTareas.data)
-
-      // Solo el supervisor carga guardias del turno activo
       if (usuario.rol === 'SUPERVISOR') {
         const rGuardias = await apiClient.get<Usuario[]>('/guardias')
         setGuardias(rGuardias.data)
@@ -85,14 +84,8 @@ export default function App() {
       const res = await apiClient.post<{
         token: string; id: number; nombre: string; email: string; role: string
       }>('/login', { email: loginEmail, contrasena: loginPassword })
-
       localStorage.setItem('token', res.data.token)
-      const u: Usuario = {
-        id:     res.data.id,
-        nombre: res.data.nombre,
-        email:  res.data.email,
-        rol:    res.data.role as 'SUPERVISOR' | 'GUARDIA',
-      }
+      const u: Usuario = { id: res.data.id, nombre: res.data.nombre, email: res.data.email, rol: res.data.role as 'SUPERVISOR' | 'GUARDIA' }
       localStorage.setItem('usuario', JSON.stringify(u))
       setUsuario(u)
       mostrar('Sesión iniciada correctamente.')
@@ -104,10 +97,7 @@ export default function App() {
   // ── Logout ────────────────────────────────────────────────────────────────
   const logout = () => {
     localStorage.clear()
-    setUsuario(null)
-    setTareas([])
-    setGuardias([])
-    setVista('dashboard')
+    setUsuario(null); setTareas([]); setGuardias([]); setVista('dashboard')
   }
 
   // ── Crear tarea ───────────────────────────────────────────────────────────
@@ -116,18 +106,13 @@ export default function App() {
     if (!nuevaZona || !nuevaDesc || !guardiaAsignadoId || !usuario) return
     try {
       await apiClient.post('/tareas', {
-        zona: nuevaZona, descripcion: nuevaDesc,
-        prioridad: nuevaPrioridad,
-        guardiaId: Number(guardiaAsignadoId),
-        supervisorId: usuario.id,
+        zona: nuevaZona, descripcion: nuevaDesc, prioridad: nuevaPrioridad,
+        guardiaId: Number(guardiaAsignadoId), supervisorId: usuario.id,
       })
-      setNuevaZona(''); setNuevaDesc('')
-      setGuardiaAsignadoId(''); setNuevaPrioridad('NORMAL')
+      setNuevaZona(''); setNuevaDesc(''); setGuardiaAsignadoId(''); setNuevaPrioridad('NORMAL')
       mostrar('Tarea asignada correctamente.')
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al crear la tarea.', 'error')
-    }
+    } catch { mostrar('Error al crear la tarea.', 'error') }
   }
 
   // ── Validar tarea ─────────────────────────────────────────────────────────
@@ -141,9 +126,7 @@ export default function App() {
       mostrar(estado === 'APROBADA' ? 'Tarea aprobada.' : 'Tarea devuelta al guardia.')
       setObsSupervisor(prev => { const s = { ...prev }; delete s[tareaId]; return s })
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al validar la tarea.', 'error')
-    }
+    } catch { mostrar('Error al validar la tarea.', 'error') }
   }
 
   // ── Cerrar turno ──────────────────────────────────────────────────────────
@@ -157,17 +140,14 @@ export default function App() {
       URL.revokeObjectURL(url)
       mostrar('Turno cerrado. Informe descargado.')
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al cerrar el turno.', 'error')
-    }
+    } catch { mostrar('Error al cerrar el turno.', 'error') }
   }
 
   // ── Evidencia ─────────────────────────────────────────────────────────────
   const capturarFotoNativa = (e: React.ChangeEvent<HTMLInputElement>, tareaId: number) => {
     const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
-    reader.onloadend = () =>
-      setImagenBase64(prev => ({ ...prev, [tareaId]: reader.result as string }))
+    reader.onloadend = () => setImagenBase64(prev => ({ ...prev, [tareaId]: reader.result as string }))
     reader.readAsDataURL(file)
   }
 
@@ -183,9 +163,7 @@ export default function App() {
       setImagenBase64(prev =>      { const s = { ...prev }; delete s[tareaId]; return s })
       mostrar('Evidencia enviada al supervisor.')
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al enviar la evidencia.', 'error')
-    }
+    } catch { mostrar('Error al enviar la evidencia.', 'error') }
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -201,10 +179,16 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Header usuario={usuario} logout={logout} />
+      <Header
+        usuario={usuario}
+        logout={logout}
+        onPerfil={usuario.rol === 'SUPERVISOR' ? () => setVista('perfil') : undefined}
+      />
       {toast && <NotificationToast mensaje={toast.mensaje} tipo={toast.tipo} />}
 
       <div className="main-content">
+
+        {/* ── Vistas del SUPERVISOR ── */}
         {usuario.rol === 'SUPERVISOR' && vista === 'dashboard' && (
           <SupervisorDashboard
             guardias={guardias} tareas={tareas}
@@ -216,7 +200,9 @@ export default function App() {
             obsSupervisor={obsSupervisor} setObsSupervisor={setObsSupervisor}
             dictaminarTarea={dictaminarTarea}
             clausurarTurnoOperativo={clausurarTurnoOperativo}
-            onGestionGuardias={() => setVista('guardias')}
+            onGestionGuardias={()   => setVista('guardias')}
+            onHistorial={() => setVista('historial')}
+            onIncidencias={() => setVista('incidencias')}
           />
         )}
 
@@ -224,6 +210,26 @@ export default function App() {
           <GestionGuardias onVolver={() => setVista('dashboard')} />
         )}
 
+        {usuario.rol === 'SUPERVISOR' && vista === 'historial' && (
+          <HistorialTurnos onVolver={() => setVista('dashboard')} />
+        )}
+
+        {usuario.rol === 'SUPERVISOR' && vista === 'incidencias' && (
+          <Incidencias
+            onVolver={() => setVista('dashboard')}
+            supervisorId={usuario.id}
+          />
+        )}
+
+        {usuario.rol === 'SUPERVISOR' && vista === 'perfil' && (
+          <PerfilSupervisor
+            usuario={usuario}
+            onVolver={() => setVista('dashboard')}
+            onActualizado={u => { setUsuario(u) }}
+          />
+        )}
+
+        {/* ── Vista del GUARDIA ── */}
         {usuario.rol === 'GUARDIA' && (
           <GuardiaDashboard
             tareas={tareas} usuarioId={usuario.id}

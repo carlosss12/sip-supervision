@@ -5,6 +5,7 @@ import {
   subirEvidencia,
   validarTarea,
   cerrarTurno,
+  getHistorialTurnos,
 } from '../controllers/tarea.controller'
 import {
   authMiddleware,
@@ -14,10 +15,11 @@ import {
 
 const router = Router()
 
-router.get('/tareas',             authMiddleware,                    getTareas)
-router.post('/tareas',            authMiddleware, soloSupervisor,    crearTarea)
-router.post('/evidencias',        authMiddleware, soloGuardia,       subirEvidencia)
-router.put('/tareas/:id/validar', authMiddleware, soloSupervisor,    validarTarea)
-router.post('/turnos/cerrar',     authMiddleware, soloSupervisor,    cerrarTurno)
+router.get('/tareas',             authMiddleware,                 getTareas)
+router.post('/tareas',            authMiddleware, soloSupervisor, crearTarea)
+router.post('/evidencias',        authMiddleware, soloGuardia,    subirEvidencia)
+router.put('/tareas/:id/validar', authMiddleware, soloSupervisor, validarTarea)
+router.post('/turnos/cerrar',     authMiddleware, soloSupervisor, cerrarTurno)
+router.get('/turnos/historial',   authMiddleware, soloSupervisor, getHistorialTurnos)
 
 export default router
