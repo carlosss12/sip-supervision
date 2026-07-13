@@ -1,114 +1,115 @@
-import React from "react";
-import TaskCard from "../components/TaskCard";
-import { Tarea } from "../types/Tarea";
+import { Tarea } from '../types/Tarea'
+import TaskCard from '../components/TaskCard'
 
 interface Props {
-  tareas: Tarea[];
-  usuarioId: number;
-  comentarioGuardia: any;
-  setComentarioGuardia: any;
-  imagenBase64: any;
-  setImagenBase64: any;
-  capturarFotoNativa: any;
-  enviarEvidenciaDesdeWeb: any;
-  fileInputRef: any;
+  tareas: Tarea[]; usuarioId: number
+  comentarioGuardia: Record<number, string>; setComentarioGuardia: (v: Record<number, string>) => void
+  imagenBase64: Record<number, string>;      setImagenBase64:      (v: Record<number, string>) => void
+  capturarFotoNativa: (e: React.ChangeEvent<HTMLInputElement>, id: number) => void
+  enviarEvidenciaDesdeWeb: (id: number) => void
+  fileInputRef: React.MutableRefObject<Record<number, HTMLInputElement | null>>
 }
 
 export default function GuardiaDashboard(props: Props) {
-  // Filtrado síncrono de misiones asignadas al operador móvil
-  const tareasGuardia = props.tareas.filter(
-    t => t.guardia?.id === props.usuarioId
-  );
+  const tareasGuardia = props.tareas.filter(t => t.guardia?.id === props.usuarioId)
+  const activas       = tareasGuardia.filter(t => t.estado === 'PENDIENTE' || t.estado === 'EN_REVISION')
+  const archivadas    = tareasGuardia.filter(t => t.estado === 'APROBADA'  || t.estado === 'RECHAZADA')
 
   return (
-    <div className="guardia-mobile-container" style={{ maxWidth: "480px", margin: "0 auto" }}>
-      {/* Sub-cabecera técnica institucional de la aplicación */}
-      <div style={{ paddingBottom: "16px", marginBottom: "20px", borderBottom: "1px solid var(--border)" }}>
-        <span style={{ fontSize: "11px", color: "var(--primary)", fontWeight: 700, letterSpacing: "1px" }}>
-          SISTEMA MÓVIL — ÓRDENES DE TRABAJO ASIGNADAS
-        </span>
+    <div className="guardia-layout">
+      <div className="guardia-header-bar">
+        <div className="guardia-header-dot" />
+        <span className="guardia-header-text">Terminal móvil — Órdenes de trabajo asignadas</span>
       </div>
 
-      <div className="tasks-grid" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-        {tareasGuardia.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--muted)", fontSize: "13px" }}>
-            SIN REGISTROS DE INSPECCIÓN PENDIENTES
-          </div>
-        ) : (
-          tareasGuardia.map(t => (
-            /* Inyectamos tu componente modular pasándole explícitamente el rol GUARDIA */
-            <TaskCard key={t.id} tarea={t} rolUsuario="GUARDIA">
-              
-              {/* Solo si la orden requiere captura, abrimos el formulario mediante composición */}
-              {t.estado === "PENDIENTE" ? (
-                <div style={{ marginTop: "12px", paddingTop: "12px", borderTop: "1px solid var(--border)" }}>
-                  <label style={{ display: "block", fontSize: "10px", color: "var(--muted)", marginBottom: "6px", fontWeight: 600, letterSpacing: "0.5px" }}>
-                    REPORTE TÉCNICO DE CAMPO
-                  </label>
-                  
-                  <textarea
-                    className="form-control-sip"
-                    placeholder="Describa la condición del perímetro evaluado según protocolo..."
-                    value={props.comentarioGuardia[t.id] || ""}
-                    onChange={(e) =>
-                      props.setComentarioGuardia({
-                        ...props.comentarioGuardia,
-                        [t.id]: e.target.value
-                      })
-                    }
-                    style={{ height: "80px", resize: "none", marginBottom: "14px", fontFamily: "inherit" }}
-                  />
+      {tareasGuardia.length === 0 ? (
+        <div className="guardia-empty">
+          <div className="guardia-empty-icon">◎</div>
+          <div className="guardia-empty-title">Sin tareas asignadas</div>
+          <div className="guardia-empty-sub">El supervisor enviará instrucciones cuando sea necesario.</div>
+        </div>
+      ) : (
+        <>
+          {activas.length > 0 && (
+            <div>
+              <span className="guardia-section-label">Tareas activas ({activas.length})</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {activas.map(t => (
+                  <TaskCard key={t.id} tarea={t}>
+                    {t.estado === 'PENDIENTE' && (
+                      <div className="evidencia-form">
+                        {t.observacion && (
+                          <div className="rechazo-box">
+                            <span className="rechazo-label">Motivo del rechazo</span>
+                            <p className="rechazo-text">{t.observacion}</p>
+                          </div>
+                        )}
 
-                  {/* Input de archivo oculto nativo */}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: "none" }}
-                    ref={(el) => {
-                      if (props.fileInputRef.current) {
-                        props.fileInputRef.current[t.id] = el;
-                      }
-                    }}
-                    onChange={(e) => props.capturarFotoNativa(e, t.id)}
-                  />
+                        <div className="field">
+                          <label className="field-label">Informe de campo <span className="field-required">*</span></label>
+                          <textarea className="form-control-sip"
+                            placeholder="Describe la condición del área inspeccionada..."
+                            value={props.comentarioGuardia[t.id] || ''}
+                            onChange={e => props.setComentarioGuardia({ ...props.comentarioGuardia, [t.id]: e.target.value })}
+                            style={{ height: 72, resize: 'none', lineHeight: 1.5 }} />
+                        </div>
 
-                  {/* Botón activador estético para la cámara del smartphone */}
-                  <button
-                    type="button"
-                    className="form-control-sip"
-                    onClick={() => props.fileInputRef.current[t.id]?.click()}
-                    style={{
-                      marginBottom: "14px",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      textAlign: "center",
-                      backgroundColor: props.imagenBase64[t.id] ? "rgba(34,197,94,0.06)" : "var(--surface-2)",
-                      borderColor: props.imagenBase64[t.id] ? "#22c55e" : "var(--border)",
-                      color: props.imagenBase64[t.id] ? "#22c55e" : "var(--text)"
-                    }}
-                  >
-                    {props.imagenBase64[t.id] ? "✓ REGISTRO FOTOGRÁFICO CAPTURADO" : "📸 ADJUNTAR REGISTRO FOTOGRÁFICO"}
-                  </button>
+                        <input type="file" accept="image/*" style={{ display: 'none' }}
+                          ref={el => { props.fileInputRef.current[t.id] = el }}
+                          onChange={e => props.capturarFotoNativa(e, t.id)} />
 
-                  <button
-                    className="btn-primary-sip"
-                    style={{ width: "100%" }}
-                    onClick={() => props.enviarEvidenciaDesdeWeb(t.id)}
-                  >
-                    Transmitir Reporte
-                  </button>
-                </div>
-              ) : (
-                /* Bloque de bloqueo síncrono mientras central evalúa los datos */
-                <div style={{ textAlign: "center", padding: "10px", background: "var(--surface-2)", borderRadius: "4px", fontSize: "11px", color: "var(--muted)", fontWeight: 600, border: "1px solid var(--border)", letterSpacing: "0.5px" }}>
-                  {t.estado === "EN_REVISION" ? "EVALUACIÓN EN CURSO EN CENTRAL" : "REGISTRO CONFIRMADO Y ARCHIVADO"}
-                </div>
-              )}
+                        <button type="button"
+                          className={`foto-btn ${props.imagenBase64[t.id] ? 'foto-cargada' : ''}`}
+                          onClick={() => props.fileInputRef.current[t.id]?.click()}>
+                          <span className="foto-icon">{props.imagenBase64[t.id] ? '✓' : '📷'}</span>
+                          <span>{props.imagenBase64[t.id] ? 'Fotografía adjuntada — toca para cambiar' : 'Adjuntar fotografía de evidencia'}</span>
+                        </button>
 
-            </TaskCard>
-          ))
-        )}
-      </div>
+                        {props.imagenBase64[t.id] && (
+                          <img src={props.imagenBase64[t.id]} alt="Preview"
+                            style={{ width: '100%', maxHeight: 180, objectFit: 'cover', borderRadius: 'var(--r-md)', border: '1px solid var(--border-2)' }} />
+                        )}
+
+                        <button className="btn-primary-sip" style={{ width: '100%', padding: 13 }}
+                          onClick={() => props.enviarEvidenciaDesdeWeb(t.id)}>
+                          Enviar evidencia al supervisor
+                        </button>
+                      </div>
+                    )}
+
+                    {t.estado === 'EN_REVISION' && (
+                      <div className="estado-bloque estado-revision">
+                        <span style={{ fontSize: 16 }}>⏳</span>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>Evidencia enviada</div>
+                          <div style={{ fontSize: 11, opacity: .75, marginTop: 2 }}>Esperando validación del supervisor.</div>
+                        </div>
+                      </div>
+                    )}
+                  </TaskCard>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {archivadas.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <span className="guardia-section-label">Historial del turno ({archivadas.length})</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {archivadas.map(t => (
+                  <TaskCard key={t.id} tarea={t}>
+                    <div className={`estado-bloque ${t.estado === 'APROBADA' ? 'estado-archivado' : ''}`}
+                      style={t.estado !== 'APROBADA' ? { background: 'var(--red-dim)', border: '1px solid rgba(239,68,68,.2)', color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 'var(--r-md)', fontSize: 12, fontWeight: 500 } : undefined}>
+                      <span>{t.estado === 'APROBADA' ? '✓' : '✕'}</span>
+                      <span>{t.estado === 'APROBADA' ? 'Tarea aprobada por central' : 'Tarea rechazada'}</span>
+                    </div>
+                  </TaskCard>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
-  );
+  )
 }

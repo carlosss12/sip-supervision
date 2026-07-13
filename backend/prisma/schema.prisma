@@ -25,16 +25,26 @@ enum EstadoTarea {
   RECHAZADA
 }
 
+enum TurnoGuardia {
+  MANANA   // 06:00 - 14:00
+  TARDE    // 14:00 - 22:00
+  NOCHE    // 22:00 - 06:00
+}
+
 model Usuario {
-  id              Int      @id @default(autoincrement())
-  email           String   @unique
-  contrasena      String
-  nombre          String
-  rol             Rol
-  creadoEn        DateTime @default(now())
-  
-  tareasCreadas   Tarea[]  @relation("TareasCreadas")
-  tareasAsignadas Tarea[]  @relation("TareasAsignadas")
+  id        Int           @id @default(autoincrement())
+  email     String        @unique
+  password  String
+  nombre    String
+  rol       Rol
+  rut       String?       @unique
+  telefono  String?
+  turno     TurnoGuardia?  // solo aplica para GUARDIA
+  activo    Boolean       @default(true)
+  creadoEn  DateTime      @default(now())
+
+  tareasCreadas   Tarea[] @relation("TareasCreadas")
+  tareasAsignadas Tarea[] @relation("TareasAsignadas")
 
   @@map("usuarios")
 }
@@ -59,15 +69,14 @@ model Tarea {
   fotoUrl       String?     @db.Text
   observacion   String?     @db.Text
   creadaEn      DateTime    @default(now())
-  
-  turno         Turno?      @relation(fields: [turnoId], references: [id], onDelete: SetNull)
-  turnoId       Int?
-  
-  supervisor    Usuario     @relation("TareasCreadas", fields: [supervisorId], references: [id], onDelete: Cascade)
-  supervisorId  Int
-  
-  guardia       Usuario     @relation("TareasAsignadas", fields: [guardiaId], references: [id], onDelete: Cascade)
-  guardiaId     Int
+  actualizadaEn DateTime    @updatedAt
+
+  turno        Turno?  @relation(fields: [turnoId],      references: [id], onDelete: SetNull)
+  turnoId      Int?
+  supervisor   Usuario @relation("TareasCreadas",         fields: [supervisorId], references: [id], onDelete: Cascade)
+  supervisorId Int
+  guardia      Usuario @relation("TareasAsignadas",       fields: [guardiaId],    references: [id], onDelete: Cascade)
+  guardiaId    Int
 
   @@map("tareas")
 }

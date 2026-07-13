@@ -1,18 +1,19 @@
-FROM node:20-slim
-
-# Instalar dependencias del sistema requeridas por los motores nativos de Prisma
-RUN apt-get update && apt-get install -y openssl libssl-dev && rm -rf /var/lib/apt/lists/*
+FROM node:22-slim
 
 WORKDIR /app
+
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm install
 
-COPY prisma ./prisma/
+COPY . .
+
 RUN npx prisma generate
 
-COPY . .
+RUN npm run build
 
 EXPOSE 4000
 
-CMD ["npm", "run", "dev"]
+# db push crea las tablas directo desde el schema sin necesitar archivos de migración
+CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run seed && node dist/index.js"]

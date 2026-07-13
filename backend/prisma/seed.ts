@@ -1,52 +1,35 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Rol } from '@prisma/client'
+import bcrypt from 'bcrypt'
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 
 async function main() {
-  await prisma.tarea.deleteMany({});
-  await prisma.usuario.deleteMany({});
-  await prisma.turno.deleteMany({});
+  console.log('⏳ Ejecutando seed...')
 
-  // Carga de Personal con Credenciales Formales
-  await prisma.usuario.create({
-    data: {
-      email: 'supervisor@sipprotection.cl',
-      contrasena: 'admin123',
-      nombre: 'Carlos Mendoza',
-      rol: 'SUPERVISOR'
-    }
-  });
+  // Solo se crea el supervisor — los guardias los crea el supervisor desde el sistema
+  const hash = await bcrypt.hash('admin123', 10)
+  await prisma.usuario.upsert({
+    where:  { email: 'supervisor@sip.cl' },
+    update: { password: hash },
+    create: {
+      email:    'supervisor@sip.cl',
+      password: hash,
+      nombre:   'Supervisor Principal',
+      rol:      Rol.SUPERVISOR,
+    },
+  })
+  console.log('  ✓ supervisor@sip.cl')
 
-  await prisma.usuario.create({
-    data: {
-      email: 'j.perez@sipprotection.cl',
-      contrasena: 'guardia123',
-      nombre: 'Juan Perez',
-      rol: 'GUARDIA'
-    }
-  });
+  // Turno inicial
+  const turnoAbierto = await prisma.turno.findFirst({ where: { abierto: true } })
+  if (!turnoAbierto) {
+    await prisma.turno.create({ data: { abierto: true } })
+    console.log('  ✓ Turno inicial creado')
+  }
 
-  await prisma.usuario.create({
-    data: {
-      email: 'c.soto@sipprotection.cl',
-      contrasena: 'guardia123',
-      nombre: 'Carlos Soto',
-      rol: 'GUARDIA'
-    }
-  });
-
-  await prisma.turno.create({
-    data: { abierto: true }
-  });
-
-  console.log('✅ Base de datos inicializada con credenciales corporativas reales.');
+  console.log('✅ Seed completado')
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+  .catch(e => { console.error('❌', e); process.exit(1) })
+  .finally(() => prisma.$disconnect())

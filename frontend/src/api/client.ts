@@ -1,10 +1,25 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios'
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  headers: { 'Content-Type': 'application/json' },
+})
 
-export default apiClient;
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+apiClient.interceptors.response.use(
+  (res) => res,
+  (err: AxiosError) => {
+    if (err.response?.status === 401) {
+      localStorage.clear()
+      window.location.reload()
+    }
+    return Promise.reject(err)
+  }
+)
+
+export default apiClient

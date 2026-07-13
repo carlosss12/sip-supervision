@@ -1,19 +1,23 @@
-import { Router } from 'express';
-import { 
-  getTareas, 
-  crearTarea, 
-  subirEvidencia, 
-  validarTarea, 
-  cerrarTurno 
-} from '../controllers/tarea.controller';
+import { Router } from 'express'
+import {
+  getTareas,
+  crearTarea,
+  subirEvidencia,
+  validarTarea,
+  cerrarTurno,
+} from '../controllers/tarea.controller'
+import {
+  authMiddleware,
+  soloSupervisor,
+  soloGuardia,
+} from '../middlewares/auth.middleware'
 
-const router = Router();
+const router = Router()
 
-// Definición explícita de rutas para calzar con el Frontend externo
-router.get('/tareas', getTareas);
-router.post('/tareas', crearTarea);
-router.post('/evidencias', subirEvidencia);
-router.put('/tareas/:id/validar', validarTarea);
-router.post('/turnos/cerrar', cerrarTurno);
+router.get('/tareas',             authMiddleware,                    getTareas)
+router.post('/tareas',            authMiddleware, soloSupervisor,    crearTarea)
+router.post('/evidencias',        authMiddleware, soloGuardia,       subirEvidencia)
+router.put('/tareas/:id/validar', authMiddleware, soloSupervisor,    validarTarea)
+router.post('/turnos/cerrar',     authMiddleware, soloSupervisor,    cerrarTurno)
 
-export default router;
+export default router

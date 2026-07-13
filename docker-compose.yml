@@ -1,55 +1,49 @@
 services:
+
   db:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     container_name: sip_db
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: sip_user
+      POSTGRES_PASSWORD: sip_pass
+      POSTGRES_DB: sip_db
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - sip_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U sip_user -d sip_db"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   backend:
     build: ./backend
     container_name: sip_backend
-    restart: always
-    ports:
-      - "${BACKEND_PORT}:4000"
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - JWT_SECRET=${JWT_SECRET}
-      - PORT=4000
-    volumes:
-      - ./backend/uploads:/app/uploads
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx prisma db push && npx prisma db seed && npm run dev"
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/api/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
+    environment:
+      DATABASE_URL: postgresql://sip_user:sip_pass@db:5432/sip_db
+      JWT_SECRET: sip_jwt_secret_2024_muy_largo_y_seguro
+      PORT: 4000
+      NODE_ENV: development
+    ports:
+      - "4000:4000"
+    volumes:
+      - sip_uploads:/app/uploads
 
   frontend:
-    build: ./frontend  # <--- Corregido para que apunte exactamente a tu carpeta
-    container_name: sip_frontend_web
-    restart: always
-    ports:
-      - "3000:3000"
-    environment:
-      - VITE_API_URL=${VITE_API_URL}
+    build: ./frontend
+    container_name: sip_frontend
+    restart: unless-stopped
     depends_on:
-      backend:
-        condition: service_healthy
+      - backend
+    ports:
+      - "5173:80"
 
 volumes:
-  pgdata:
+  sip_pgdata:
+  sip_uploads:

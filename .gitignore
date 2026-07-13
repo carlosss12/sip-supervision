@@ -1,15 +1,29 @@
-# Entorno y Credenciales (Seguridad)
-.env
-
-# Dependencias de Node (No se suben porque se instalan en Docker)
+cat > .gitignore << 'EOF'
+# Dependencias
 node_modules/
 backend/node_modules/
 frontend/node_modules/
 
-# Archivos de compilación local
-dist/
-build/
-.production/
+# Build
+backend/dist/
+frontend/dist/
 
-# Reportes e informes generados en vivo (Auditoría)
-backend/uploads/*.pdf
+# Variables de entorno (nunca subir al repo)
+.env
+backend/.env
+frontend/.env
+
+# Docker volumes
+sip_pgdata/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
+EOF
