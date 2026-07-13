@@ -5,16 +5,18 @@ services:
     container_name: sip_db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: sip_user
-      POSTGRES_PASSWORD: sip_pass
-      POSTGRES_DB: sip_db
-      TZ: America/Santiago
+      POSTGRES_USER:     ${POSTGRES_USER:-sip_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sip_pass}
+      POSTGRES_DB:       ${POSTGRES_DB:-sip_db}
+      TZ:                ${TZ:-America/Santiago}
     ports:
       - "5432:5432"
     volumes:
       - sip_pgdata:/var/lib/postgresql/data
+    networks:
+      - sip_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U sip_user -d sip_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sip_user} -d ${POSTGRES_DB:-sip_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,15 +29,17 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://sip_user:sip_pass@db:5432/sip_db
-      JWT_SECRET: sip_jwt_secret_2024_muy_largo_y_seguro
-      PORT: 4000
-      NODE_ENV: development
-      TZ: America/Santiago
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sip_user:sip_pass@db:5432/sip_db}
+      JWT_SECRET:   ${JWT_SECRET:-sip_jwt_secret_2024_muy_largo_y_seguro}
+      PORT:         ${PORT:-4000}
+      NODE_ENV:     ${NODE_ENV:-development}
+      TZ:           ${TZ:-America/Santiago}
     ports:
       - "4000:4000"
     volumes:
       - sip_uploads:/app/uploads
+    networks:
+      - sip_network
 
   frontend:
     build: ./frontend
@@ -45,7 +49,13 @@ services:
       - backend
     ports:
       - "5173:80"
+    networks:
+      - sip_network
 
 volumes:
   sip_pgdata:
   sip_uploads:
+
+networks:
+  sip_network:
+    driver: bridge
