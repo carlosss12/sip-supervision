@@ -1,5 +1,7 @@
 import { useState } from 'react'
 
+import { IconHexagon } from '../components/Icons'
+
 interface Props {
   email: string; password: string
   setEmail: (v: string) => void; setPassword: (v: string) => void
@@ -30,7 +32,7 @@ export default function LoginPage({ email, password, setEmail, setPassword, logi
     <div className="login-container">
       <div className="login-panel">
         <div className="login-panel-grid" />
-        <div className="login-panel-icon">⬡</div>
+        <div className="login-panel-icon"><IconHexagon size={28} color="var(--primary)" /></div>
         <h1 className="login-panel-title">Centro de<br />Supervisión</h1>
         <p className="login-panel-sub">Sistema unificado de asignación<br />y validación de tareas operativas.</p>
         <div className="login-panel-stats">
@@ -78,7 +80,7 @@ export default function LoginPage({ email, password, setEmail, setPassword, logi
           {/* Error permanente hasta que se modifique email o password */}
           {loginError && errorVisible && (
             <div className="login-error">
-              ⚠ {loginError}
+              {loginError}
             </div>
           )}
 

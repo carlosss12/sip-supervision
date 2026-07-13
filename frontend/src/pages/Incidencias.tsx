@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { IconShield, IconCheck, IconX, IconAlert, IconClock } from '../components/Icons'
 import { createPortal } from 'react-dom'
 import apiClient from '../api/client'
 
@@ -15,9 +16,9 @@ interface Incidencia {
 interface Props { onVolver: () => void; supervisorId: number }
 
 const GRAVEDAD_CFG: Record<Gravedad, { label: string; color: string; bg: string; icon: string }> = {
-  LEVE:  { label: 'Leve',  color: '#22c55e', bg: 'rgba(34,197,94,.1)',   icon: '🟢' },
-  MEDIA: { label: 'Media', color: '#f5a623', bg: 'rgba(245,166,35,.1)',  icon: '🟡' },
-  GRAVE: { label: 'Grave', color: '#ef4444', bg: 'rgba(239,68,68,.1)',   icon: '🔴' },
+  LEVE:  { label: 'Leve',  color: '#22c55e', bg: 'rgba(34,197,94,.1)',   icon: 'leve' },
+  MEDIA: { label: 'Media', color: '#f5a623', bg: 'rgba(245,166,35,.1)',  icon: 'media' },
+  GRAVE: { label: 'Grave', color: '#ef4444', bg: 'rgba(239,68,68,.1)',   icon: 'grave' },
 }
 
 const ESTADO_CFG: Record<EstadoInc, { label: string; color: string }> = {
@@ -75,7 +76,7 @@ export default function Incidencias({ onVolver }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <button onClick={onVolver} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: 6 }}>
-            ← Volver a bitácora
+            Volver a bitácora
           </button>
           <div style={{ fontSize: 18, fontWeight: 700 }}>Registro de Incidencias</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
@@ -104,7 +105,7 @@ export default function Incidencias({ onVolver }: Props) {
         <p style={{ color: 'var(--muted)' }}>Cargando...</p>
       ) : filtradas.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">🛡️</div>
+          <div className="empty-icon" style={{ fontSize: 24, color: "var(--border-2)" }}>—</div>
           <div className="empty-title">Sin incidencias registradas</div>
           <div className="empty-sub">Las incidencias del turno aparecerán aquí.</div>
         </div>
@@ -120,7 +121,11 @@ export default function Incidencias({ onVolver }: Props) {
               }}>
                 <div style={{ padding: '12px 16px', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 14 }}>{gcfg.icon}</span>
+                    <span style={{ display: 'flex', alignItems: 'center' }}>
+                    { inc.gravedad === 'LEVE'  && <IconCheck size={14} color={gcfg.color} /> }
+                    { inc.gravedad === 'MEDIA' && <IconAlert size={14} color={gcfg.color} /> }
+                    { inc.gravedad === 'GRAVE' && <IconX     size={14} color={gcfg.color} /> }
+                  </span>
                     <div>
                       <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--muted)' }}>#{inc.id}</span>
                       <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700, color: gcfg.color, background: gcfg.bg }}>{gcfg.label}</span>
@@ -136,7 +141,7 @@ export default function Incidencias({ onVolver }: Props) {
                   <div style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.55 }}>{inc.descripcion}</div>
                   {inc.resolucion && (
                     <div style={{ fontSize: 12, color: 'var(--green)', fontStyle: 'italic', marginTop: 4 }}>
-                      ✓ Resolución: {inc.resolucion}
+                      Resolución: {inc.resolucion}
                     </div>
                   )}
                   {inc.estado !== 'CERRADA' && (
@@ -170,7 +175,7 @@ export default function Incidencias({ onVolver }: Props) {
                 <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.12em', color: '#ef4444', textTransform: 'uppercase', fontFamily: 'var(--mono)', marginBottom: 6 }}>Nueva incidencia</div>
                 <div style={{ fontSize: 17, fontWeight: 700 }}>Registrar incidencia operativa</div>
               </div>
-              <button onClick={() => setModal(false)} style={{ background: 'transparent', border: 'none', color: '#4a5060', fontSize: 18, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setModal(false)} style={{ background: 'transparent', border: 'none', color: '#4a5060', fontSize: 18, cursor: 'pointer' }}>x</button>
             </div>
             <form onSubmit={crearIncidencia}>
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -194,7 +199,11 @@ export default function Incidencias({ onVolver }: Props) {
                       return (
                         <button key={g} type="button" onClick={() => setForm(p => ({ ...p, gravedad: g }))}
                           style={{ padding: '10px', borderRadius: 10, border: `1px solid ${form.gravedad === g ? cfg.color + '55' : '#252b35'}`, background: form.gravedad === g ? cfg.bg : '#131619', color: form.gravedad === g ? cfg.color : '#4a5060', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                          <span style={{ fontSize: 16 }}>{cfg.icon}</span>
+                          <span>
+                        { g === 'LEVE'  && <IconCheck size={16} color={form.gravedad === g ? cfg.color : '#4a5060'} /> }
+                        { g === 'MEDIA' && <IconAlert size={16} color={form.gravedad === g ? cfg.color : '#4a5060'} /> }
+                        { g === 'GRAVE' && <IconX     size={16} color={form.gravedad === g ? cfg.color : '#4a5060'} /> }
+                      </span>
                           <span>{cfg.label}</span>
                         </button>
                       )

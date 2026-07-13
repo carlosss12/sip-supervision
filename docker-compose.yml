@@ -8,6 +8,7 @@ services:
       POSTGRES_USER: sip_user
       POSTGRES_PASSWORD: sip_pass
       POSTGRES_DB: sip_db
+      TZ: America/Santiago
     ports:
       - "5432:5432"
     volumes:
@@ -30,6 +31,7 @@ services:
       JWT_SECRET: sip_jwt_secret_2024_muy_largo_y_seguro
       PORT: 4000
       NODE_ENV: development
+      TZ: America/Santiago
     ports:
       - "4000:4000"
     volumes:

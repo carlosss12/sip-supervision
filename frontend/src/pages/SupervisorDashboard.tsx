@@ -1,3 +1,4 @@
+import { IconUser, IconList, IconAlert, IconBolt, IconChevronUp, IconChevronDown, IconArrowRight, IconPdf, IconDot } from '../components/Icons'
 import { useState } from 'react'
 import StatsCards from '../components/StatsCards'
 import { Usuario } from '../types/Usuario'
@@ -139,7 +140,7 @@ export default function SupervisorDashboard(props: Props) {
                         borderColor: props.nuevaPrioridad === p ? (p === 'URGENTE' ? 'var(--primary-bd)'  : 'var(--border-2)')   : 'var(--border)',
                         color:       props.nuevaPrioridad === p ? (p === 'URGENTE' ? 'var(--primary)'     : 'var(--text)')        : 'var(--muted)',
                       }}>
-                      {p === 'URGENTE' ? '⚡' : '·'} {p === 'URGENTE' ? 'Urgente' : 'Normal'}
+                      {p === 'URGENTE' ? '' : '·'} {p === 'URGENTE' ? 'Urgente' : 'Normal'}
                     </button>
                   ))}
                 </div>
@@ -155,9 +156,9 @@ export default function SupervisorDashboard(props: Props) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {[
-              { icon: '👤', label: 'Gestionar guardias', fn: props.onGestionGuardias },
-              { icon: '📋', label: 'Historial de turnos', fn: props.onHistorial },
-              { icon: '🚨', label: 'Incidencias',         fn: props.onIncidencias },
+              { icon: 'user', label: 'Gestionar guardias', fn: props.onGestionGuardias },
+              { icon: 'list', label: 'Historial de turnos', fn: props.onHistorial },
+              { icon: 'alert', label: 'Incidencias',         fn: props.onIncidencias },
             ].map(btn => (
               <button key={btn.label}
                 onClick={btn.fn}
@@ -174,7 +175,10 @@ export default function SupervisorDashboard(props: Props) {
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' }}
               >
-                {btn.icon} {btn.label}
+                { btn.icon === 'user'  && <IconUser  size={13} color="var(--text-2)" /> }
+                { btn.icon === 'list'  && <IconList  size={13} color="var(--text-2)" /> }
+                { btn.icon === 'alert' && <IconAlert size={13} color="var(--text-2)" /> }
+                {btn.label}
               </button>
             ))}
           </div>
@@ -183,7 +187,7 @@ export default function SupervisorDashboard(props: Props) {
 
           <button className="btn-danger-sip" style={{ width: '100%', fontSize: 11, padding: '9px' }}
             onClick={props.clausurarTurnoOperativo}>
-            Cerrar turno · PDF
+            Cerrar turno y generar informe
           </button>
         </aside>
 
@@ -255,7 +259,7 @@ export default function SupervisorDashboard(props: Props) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                         <span style={{ fontSize: 10, fontFamily: 'var(--mono)', color: 'var(--muted)' }}>#{t.id}</span>
-                        {t.prioridad === 'URGENTE' && <span className="badge badge-urgente" style={{ fontSize: 9 }}>⚡ URGENTE</span>}
+                        {t.prioridad === 'URGENTE' && <span className="badge badge-urgente" style={{ fontSize: 9, display: 'inline-flex', alignItems: 'center', gap: 3 }}><IconBolt size={9} color="var(--primary)" /> URGENTE</span>}
                         <span className={`badge ${badge.cls}`} style={{ fontSize: 10 }}>
                           <span className="badge-dot" />{badge.label}
                         </span>
@@ -273,7 +277,7 @@ export default function SupervisorDashboard(props: Props) {
                         {t.guardia?.nombre}
                       </div>
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--muted)', flexShrink: 0 }}>→</span>
+                    <IconArrowRight size={12} color="var(--muted)" />
                   </div>
                 )
               })
@@ -295,7 +299,7 @@ export default function SupervisorDashboard(props: Props) {
               <div style={{ fontSize: 13, fontWeight: 700 }}>Detalle de tarea #{tareaActual.id}</div>
               <button onClick={() => setTareaSeleccion(null)}
                 style={{ background: 'transparent', border: 'none', color: 'var(--muted)', fontSize: 16, cursor: 'pointer', padding: '2px 6px' }}>
-                ✕
+                x
               </button>
             </div>
 
@@ -305,7 +309,7 @@ export default function SupervisorDashboard(props: Props) {
               {/* Info básica */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {tareaActual.prioridad === 'URGENTE' && <span className="badge badge-urgente">⚡ URGENTE</span>}
+                  {tareaActual.prioridad === 'URGENTE' && <span className="badge badge-urgente" style={{ display: "inline-flex", alignItems: "center", gap: 3 }}><IconBolt size={10} color="var(--primary)" /> URGENTE</span>}
                   <span className={`badge ${BADGE[tareaActual.estado].cls}`}>
                     <span className="badge-dot" />{BADGE[tareaActual.estado].label}
                   </span>
@@ -343,7 +347,7 @@ export default function SupervisorDashboard(props: Props) {
                   {tareaActual.fotoUrl && (
                     <div style={{ padding: '6px 12px', fontSize: 10, color: 'var(--blue)', cursor: 'pointer', textAlign: 'right' }}
                       onClick={() => window.open(`http://localhost:4000${tareaActual.fotoUrl}`, '_blank')}>
-                      Ver foto completa ↗
+                      Ver foto completa
                     </div>
                   )}
                 </div>
@@ -362,7 +366,7 @@ export default function SupervisorDashboard(props: Props) {
               {/* Tarea aprobada */}
               {tareaActual.estado === 'APROBADA' && (
                 <div style={{ padding: '12px', background: 'var(--green-dim)', border: '1px solid rgba(34,197,94,.2)', borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', gap: 8, color: 'var(--green)', fontSize: 13, fontWeight: 600 }}>
-                  ✓ Tarea aprobada
+                  Tarea aprobada
                 </div>
               )}
             </div>
@@ -387,7 +391,7 @@ export default function SupervisorDashboard(props: Props) {
                   </button>
                   <button className="btn-green-sip" style={{ flex: 1, fontSize: 12 }}
                     onClick={() => validar('APROBADA')}>
-                    ✓ Aprobar
+                    Aprobar
                   </button>
                 </div>
               </div>

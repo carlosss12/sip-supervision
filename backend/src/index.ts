@@ -20,6 +20,18 @@ app.use('/api', authRoutes)
 app.use('/api', tareaRoutes)
 app.use('/api', incidenciaRoutes)
 
-app.get('/api/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }))
+app.get('/api/health', (_req, res) => {
+  const ahora = new Date()
+  const hora  = ahora.getHours()
+  const turno = hora >= 6 && hora < 14 ? 'MANANA' : hora >= 14 && hora < 22 ? 'TARDE' : 'NOCHE'
+  res.json({
+    ok:       true,
+    ts:       ahora.toISOString(),
+    horaLocal: ahora.toLocaleString('es-CL'),
+    horaServidor: hora,
+    turnoActivo: turno,
+    tz: process.env.TZ ?? 'no configurado',
+  })
+})
 
 app.listen(PORT, () => console.log(`✅ Backend S.I. Protection corriendo en puerto ${PORT}`))

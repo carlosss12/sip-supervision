@@ -47,7 +47,7 @@ export default function HistorialTurnos({ onVolver }: Props) {
             background: 'none', border: 'none', color: 'var(--primary)',
             fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: 6,
           }}>
-            ← Volver a bitácora
+            Volver a bitácora
           </button>
           <div style={{ fontSize: 18, fontWeight: 700 }}>Historial de turnos</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
@@ -60,7 +60,7 @@ export default function HistorialTurnos({ onVolver }: Props) {
         <p style={{ color: 'var(--muted)' }}>Cargando historial...</p>
       ) : turnos.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-icon">📋</div>
+          <div className="empty-icon" style={{ fontSize: 28, color: "var(--border-2)" }}>—</div>
           <div className="empty-title">Sin turnos anteriores</div>
           <div className="empty-sub">Los turnos cerrados aparecerán aquí.</div>
         </div>
@@ -91,7 +91,7 @@ export default function HistorialTurnos({ onVolver }: Props) {
                       <div style={{ fontSize: 13, fontWeight: 700 }}>Turno #{t.id}</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
                         {new Date(t.inicio).toLocaleString('es-CL')}
-                        {t.fin ? ` → ${new Date(t.fin).toLocaleString('es-CL')}` : ''}
+                        {t.fin ? ` — ${new Date(t.fin).toLocaleString('es-CL')}` : ''}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -142,7 +142,7 @@ export default function HistorialTurnos({ onVolver }: Props) {
                             </span>
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--text-2)' }}>
-                            👤 {ta.guardia?.nombre ?? '—'}
+                            {ta.guardia?.nombre ?? '—'}
                             {ta.guardia?.rut ? ` | RUT: ${ta.guardia.rut}` : ''}
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>

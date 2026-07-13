@@ -46,7 +46,7 @@ export default function PerfilSupervisor({ usuario, onVolver, onActualizado }: P
   return (
     <div style={{ height: '100%', overflow: 'auto', padding: '20px 28px', maxWidth: 560 }}>
       <button onClick={onVolver} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0, marginBottom: 20 }}>
-        ← Volver a bitácora
+        Volver a bitácora
       </button>
 
       <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Mi perfil</div>
@@ -78,7 +78,7 @@ export default function PerfilSupervisor({ usuario, onVolver, onActualizado }: P
             <label className="field-label">Email</label>
             <input className="form-control-sip" type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
           </div>
-          {msgPerfil && <div style={{ fontSize: 12, color: 'var(--green)' }}>✓ {msgPerfil}</div>}
+          {msgPerfil && <div style={{ fontSize: 12, color: 'var(--green)' }}> {msgPerfil}</div>}
           <button type="submit" className="btn-primary-sip" style={{ alignSelf: 'flex-start' }}>
             Guardar cambios
           </button>
@@ -99,7 +99,7 @@ export default function PerfilSupervisor({ usuario, onVolver, onActualizado }: P
             Cambiar contraseña
           </button>
         </div>
-        {msgPw && <div style={{ padding: '0 20px 16px', fontSize: 12, color: 'var(--green)' }}>✓ {msgPw}</div>}
+        {msgPw && <div style={{ padding: '0 20px 16px', fontSize: 12, color: 'var(--green)' }}> {msgPw}</div>}
       </div>
 
       {/* Modal cambiar contraseña */}
@@ -109,7 +109,7 @@ export default function PerfilSupervisor({ usuario, onVolver, onActualizado }: P
           <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 201, width: '100%', maxWidth: 400, background: '#0d0f12', border: '1px solid #252b35', borderRadius: 16, overflow: 'hidden' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid #1c2028', background: '#131619', display: 'flex', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 15, fontWeight: 700 }}>Cambiar contraseña</div>
-              <button onClick={() => setModalPw(false)} style={{ background: 'transparent', border: 'none', color: '#4a5060', fontSize: 18, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setModalPw(false)} style={{ background: 'transparent', border: 'none', color: '#4a5060', fontSize: 18, cursor: 'pointer' }}>x</button>
             </div>
             <form onSubmit={cambiarPassword}>
               <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -121,7 +121,7 @@ export default function PerfilSupervisor({ usuario, onVolver, onActualizado }: P
                   <label className="field-label">Confirmar contraseña</label>
                   <input type="password" required className="form-control-sip" value={pwForm.confirmar} onChange={e => setPwForm(p => ({ ...p, confirmar: e.target.value }))} placeholder="Repite la contraseña" />
                 </div>
-                {errPw && <div style={{ fontSize: 12, color: 'var(--red)' }}>⚠ {errPw}</div>}
+                {errPw && <div style={{ fontSize: 12, color: 'var(--red)' }}> {errPw}</div>}
               </div>
               <div style={{ padding: '14px 24px', borderTop: '1px solid #1c2028', background: '#131619', display: 'flex', gap: 10 }}>
                 <button type="button" className="btn-secondary-sip" style={{ flex: 1 }} onClick={() => setModalPw(false)}>Cancelar</button>
