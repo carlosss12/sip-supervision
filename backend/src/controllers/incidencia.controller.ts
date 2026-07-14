@@ -13,7 +13,7 @@ export const getIncidencias = async (_req: AuthRequest, res: Response): Promise<
     res.status(500).json({ error: 'Error al obtener incidencias.' })
   }
 }
-─
+
 export const crearIncidencia = async (req: AuthRequest, res: Response): Promise<void> => {
   const { titulo, descripcion, zona, gravedad } = req.body
 
