@@ -65,7 +65,6 @@ export default function App() {
     return () => clearInterval(iv)
   }, [usuario, cargarDatosSistema])
 
-  // Login lo maneja el propio LoginPage — aqui solo recibimos el usuario ya autenticado
   const handleLogin = (u: Usuario) => {
     setUsuario(u)
     mostrar('Sesion iniciada correctamente.')

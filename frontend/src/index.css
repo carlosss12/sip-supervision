@@ -96,21 +96,9 @@ button { cursor: pointer; }
 .btn-green-sip     { padding: 9px 18px; background: var(--green); border: none; border-radius: var(--r-md); color: #000; font-weight: 700; font-size: 13px; }
 
 /* ── SUPERVISOR LAYOUT ── */
-/* sup-layout eliminado — reemplazado por layout inline en SupervisorDashboard */
-/* sup-sidebar eliminado */
-/* sup-sidebar-label eliminado */
-/* sidebar-form eliminado */
-/* sidebar-form textarea eliminado */
-/* sidebar-divider eliminado */
-/* sup-main eliminado */
-/* sup-topbar eliminado */
-/* sup-page-title eliminado */
-/* sup-page-sub eliminado */
-/* sup-filter-bar eliminado */
 .filter-chip { padding: 5px 12px; border-radius: 99px; border: 1px solid transparent; background: transparent; color: var(--text-2); font-size: 12px; font-weight: 500; transition: all .15s; }
 .filter-chip:hover  { background: var(--surface-3); color: var(--text); }
 .filter-chip.active { background: var(--surface-3); border-color: var(--border-2); color: var(--text); }
-/* sup-list eliminado */
 .search-input { padding: 7px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text); outline: none; font-size: 12px; width: 220px; transition: border-color .15s; }
 .search-input:focus { border-color: var(--primary); }
 .search-input::placeholder { color: var(--muted); }

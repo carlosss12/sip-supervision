@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middlewares/auth.middleware'
 
-// ── Determina qué turno corresponde a la hora actual ───────────────────────
 function turnoActualHora(): 'MANANA' | 'TARDE' | 'NOCHE' {
   const hora = new Date().getHours()
   if (hora >= 6  && hora < 14) return 'MANANA'
@@ -12,7 +11,6 @@ function turnoActualHora(): 'MANANA' | 'TARDE' | 'NOCHE' {
   return 'NOCHE'
 }
 
-// ── POST /api/login ─────────────────────────────────────────────────────────
 export const login = async (req: Request, res: Response): Promise<void> => {
   const { email, contrasena } = req.body
 
@@ -57,8 +55,6 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   }
 }
 
-// ── GET /api/guardias ───────────────────────────────────────────────────────
-// Devuelve solo los guardias del turno activo según la hora actual
 export const getGuardias = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turnoHora = turnoActualHora()
@@ -73,8 +69,6 @@ export const getGuardias = async (_req: AuthRequest, res: Response): Promise<voi
   }
 }
 
-// ── GET /api/guardias/todos ─────────────────────────────────────────────────
-// Devuelve todos los guardias para la vista de gestión
 export const getTodosGuardias = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const guardias = await prisma.usuario.findMany({
@@ -88,7 +82,6 @@ export const getTodosGuardias = async (_req: AuthRequest, res: Response): Promis
   }
 }
 
-// ── POST /api/guardias ──────────────────────────────────────────────────────
 export const crearGuardia = async (req: AuthRequest, res: Response): Promise<void> => {
   const { nombre, email, password, rut, telefono, turno } = req.body
 
@@ -135,7 +128,6 @@ export const crearGuardia = async (req: AuthRequest, res: Response): Promise<voi
   }
 }
 
-// ── PUT /api/guardias/:id ───────────────────────────────────────────────────
 export const actualizarGuardia = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = Number(req.params.id)
   const { nombre, email, password, rut, telefono, turno, activo } = req.body
@@ -162,7 +154,6 @@ export const actualizarGuardia = async (req: AuthRequest, res: Response): Promis
   }
 }
 
-// ── DELETE /api/guardias/:id ────────────────────────────────────────────────
 export const eliminarGuardia = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = Number(req.params.id)
   try {

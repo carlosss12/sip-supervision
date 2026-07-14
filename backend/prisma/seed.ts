@@ -6,7 +6,7 @@ const prisma = new PrismaClient()
 async function main() {
   console.log('⏳ Ejecutando seed...')
 
-  // Solo se crea el supervisor — los guardias los crea el supervisor desde el sistema
+  // Solo se crea el supervisor 
   const hash = await bcrypt.hash('admin123', 10)
   await prisma.usuario.upsert({
     where:  { email: 'supervisor@sip.cl' },

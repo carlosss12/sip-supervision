@@ -14,10 +14,8 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (res) => res,
   (err: AxiosError) => {
-    // Detectamos si el error 401 proviene del endpoint de login
     const isLoginRequest = err.config?.url?.includes('/login')
 
-    // Si es un 401 pero NO es el login, limpiamos sesión y recargamos
     if (err.response?.status === 401 && !isLoginRequest) {
       localStorage.clear()
       window.location.reload()

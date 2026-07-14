@@ -1,8 +1,3 @@
-/**
- * Iconos SVG del sistema S.I. Protection
- * Basados en Heroicons (MIT License) — sin emojis
- */
-
 interface IconProps {
   size?: number
   color?: string
