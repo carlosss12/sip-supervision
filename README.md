@@ -55,34 +55,4 @@ El sistema crea automáticamente un usuario supervisor al levantar por primera v
 
 Los guardias son creados por el supervisor desde el panel de gestión del sistema.
 
-## Estructura del repositorio
 
-```
-sip-supervision/
-├── docker-compose.yml
-├── .env.example
-├── README.md
-├── backend/
-│   ├── Dockerfile
-│   ├── prisma/
-│   │   ├── schema.prisma
-│   │   └── seed.ts
-│   └── src/
-│       ├── controllers/
-│       ├── middlewares/
-│       ├── routes/
-│       └── index.ts
-└── frontend/
-    ├── Dockerfile
-    └── src/
-        ├── components/
-        ├── pages/
-        ├── types/
-        └── App.tsx
-```
-
-## Autor
-
-Carlos Ignacio Gana González  
-Ingeniería en Ejecución en Computación e Informática  
-Universidad del Bío-Bío — 2026
