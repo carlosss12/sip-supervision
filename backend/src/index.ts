@@ -5,6 +5,7 @@ import path       from 'path'
 import authRoutes       from './routes/auth.routes'
 import tareaRoutes      from './routes/tarea.routes'
 import incidenciaRoutes from './routes/incidencia.routes'
+import camaraRoutes     from './routes/camara.routes'
 
 dotenv.config()
 
@@ -19,6 +20,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 app.use('/api', authRoutes)
 app.use('/api', tareaRoutes)
 app.use('/api', incidenciaRoutes)
+app.use('/api', camaraRoutes)
 
 app.get('/api/health', (_req, res) => {
   const ahora = new Date()

@@ -15,6 +15,7 @@ const ensureUploads = () => {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 }
 
+// -- GET /api/tareas ---------------------------------------------------------
 export const getTareas = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const tareas = await prisma.tarea.findMany({
@@ -27,6 +28,7 @@ export const getTareas = async (_req: AuthRequest, res: Response): Promise<void>
   }
 }
 
+// -- POST /api/tareas --------------------------------------------------------
 export const crearTarea = async (req: AuthRequest, res: Response): Promise<void> => {
   const { descripcion, zona, prioridad, guardiaId, supervisorId } = req.body
 
@@ -56,6 +58,7 @@ export const crearTarea = async (req: AuthRequest, res: Response): Promise<void>
   }
 }
 
+// -- POST /api/evidencias ----------------------------------------------------
 export const subirEvidencia = async (req: AuthRequest, res: Response): Promise<void> => {
   const { tareaId, comentario, fotoBase64 } = req.body
 
@@ -97,6 +100,7 @@ export const subirEvidencia = async (req: AuthRequest, res: Response): Promise<v
   }
 }
 
+// -- PUT /api/tareas/:id/validar ---------------------------------------------
 export const validarTarea = async (req: AuthRequest, res: Response): Promise<void> => {
   const tareaId              = Number(req.params.id)
   const { estado, observacion } = req.body
@@ -112,6 +116,7 @@ export const validarTarea = async (req: AuthRequest, res: Response): Promise<voi
       res.status(409).json({ error: 'Solo se pueden validar tareas EN_REVISION.' }); return
     }
 
+    // RECHAZADA ? vuelve a PENDIENTE para que el guardia corrija y reenvie
     const nuevoEstado = estado === 'APROBADA' ? 'APROBADA' : 'PENDIENTE'
 
     const actualizada = await prisma.tarea.update({
@@ -125,6 +130,7 @@ export const validarTarea = async (req: AuthRequest, res: Response): Promise<voi
   }
 }
 
+// -- GET /api/turnos/historial -----------------------------------------------
 export const getHistorialTurnos = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turnos = await prisma.turno.findMany({
@@ -144,6 +150,33 @@ export const getHistorialTurnos = async (_req: AuthRequest, res: Response): Prom
   }
 }
 
+
+// -- POST /api/turnos/iniciar -----------------------------------------------
+export const iniciarTurno = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const turnoActivo = await prisma.turno.findFirst({ where: { abierto: true } })
+    if (turnoActivo) {
+      res.status(409).json({ error: 'Ya existe un turno activo.', turno: turnoActivo })
+      return
+    }
+    const turno = await prisma.turno.create({ data: { abierto: true } })
+    res.status(201).json(turno)
+  } catch {
+    res.status(500).json({ error: 'Error al iniciar el turno.' })
+  }
+}
+
+// -- GET /api/turnos/activo -------------------------------------------------
+export const getTurnoActivo = async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const turno = await prisma.turno.findFirst({ where: { abierto: true } })
+    res.json({ turno: turno ?? null })
+  } catch {
+    res.status(500).json({ error: 'Error al consultar el turno activo.' })
+  }
+}
+
+// -- POST /api/turnos/cerrar -------------------------------------------------
 export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turno = await prisma.turno.findFirst({
@@ -168,12 +201,13 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     const noAprobadas = turno.tareas.filter(t => t.estado !== 'APROBADA')
     const pct        = turno.tareas.length > 0 ? Math.round((aprobadas.length / turno.tareas.length) * 100) : 0
 
+    // Agrupa por guardia
     const porGuardia = new Map<number, { nombre: string; rut: string; tareas: typeof turno.tareas }>()
     turno.tareas.forEach(t => {
       if (!porGuardia.has(t.guardiaId)) {
         porGuardia.set(t.guardiaId, {
-          nombre: t.guardia?.nombre ?? '—',
-          rut:    (t.guardia as any)?.rut ?? '—',
+          nombre: t.guardia?.nombre ?? '?',
+          rut:    (t.guardia as any)?.rut ?? '?',
           tareas: [],
         })
       }
@@ -185,25 +219,25 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     res.setHeader('Content-Disposition', `attachment; filename="informe_turno_${turno.id}.pdf"`)
     doc.pipe(res)
 
-    // Encabezado
+    // -- Encabezado -------------------------------------------------------
     doc.rect(0, 0, 595, 80).fill('#0d0f12')
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#f5a623')
       .text('S.I. PROTECTION', 50, 22)
     doc.fontSize(10).font('Helvetica').fillColor('#8b92a1')
-      .text('Sistema de Supervisión Operativa', 50, 48)
+      .text('Sistema de Supervision Operativa', 50, 48)
     doc.fontSize(9).fillColor('#4a5060')
       .text(`Generado: ${ahora.toLocaleString('es-CL')}`, 50, 62)
 
-    // Número de informe 
+    // Numero de informe arriba a la derecha
     doc.fontSize(22).font('Helvetica-Bold').fillColor('#f5a623')
       .text(`#${turno.id}`, 0, 22, { align: 'right' })
     doc.fontSize(8).font('Helvetica').fillColor('#4a5060')
-      .text('N° DE TURNO', 0, 48, { align: 'right' })
+      .text('N? DE TURNO', 0, 48, { align: 'right' })
 
     doc.fillColor('#000')
     doc.y = 95
 
-    // Datos del turno
+    // -- Datos del turno ---------------------------------------------------
     doc.roundedRect(50, doc.y, 495, 52, 4).fill('#f8f9fa')
     const iy = doc.y + 10
     doc.fontSize(8).font('Helvetica').fillColor('#888')
@@ -219,16 +253,16 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     doc.fontSize(8).font('Helvetica').fillColor('#888')
       .text('SUPERVISOR', 430, iy)
     doc.fontSize(11).font('Helvetica-Bold').fillColor('#222')
-      .text(turno.tareas[0]?.supervisor?.nombre ?? '—', 430, iy + 12)
+      .text(turno.tareas[0]?.supervisor?.nombre ?? '?', 430, iy + 12)
 
     doc.y = iy + 52
 
-    // Resumen estadístico 
+    // -- Resumen estadistico -----------------------------------------------
     doc.moveDown(0.8)
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#222').text('Resumen del turno')
     doc.moveDown(0.4)
 
-    // cajas de stats
+    // 4 cajas de stats
     const statY  = doc.y
     const statW  = 114
     const statGap = 9
@@ -236,7 +270,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
       { label: 'TOTAL TAREAS',  value: String(turno.tareas.length),  color: '#222' },
       { label: 'APROBADAS',     value: String(aprobadas.length),      color: '#15803d' },
       { label: 'OBSERVACIONES', value: String(noAprobadas.length),    color: '#b91c1c' },
-      { label: '% APROBACIÓN',  value: `${pct}%`,
+      { label: '% APROBACION',  value: `${pct}%`,
         color: pct >= 80 ? '#15803d' : pct >= 50 ? '#b45309' : '#b91c1c' },
     ]
 
@@ -251,17 +285,18 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
 
     doc.y = statY + 62
 
-    // Separador 
+    // -- Separador ---------------------------------------------------------
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#ddd').lineWidth(0.5).stroke()
     doc.moveDown(0.8)
 
-    // Detalle por guardia 
+    // -- Detalle por guardia -----------------------------------------------
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#222').text('Detalle por guardia')
     doc.moveDown(0.5)
 
     porGuardia.forEach(({ nombre, rut, tareas }) => {
       const aprobG = tareas.filter(t => t.estado === 'APROBADA').length
 
+      // Verifica espacio ? salto de pagina si es necesario
       if (doc.y > 700) doc.addPage()
 
       // Cabecera del guardia
@@ -269,7 +304,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
       doc.fontSize(11).font('Helvetica-Bold').fillColor('#f5a623')
         .text(nombre, 62, doc.y + 8)
       doc.fontSize(9).font('Helvetica').fillColor('#8b92a1')
-        .text(`RUT: ${rut}   ·   ${tareas.length} tarea${tareas.length !== 1 ? 's' : ''}   ·   ${aprobG} aprobada${aprobG !== 1 ? 's' : ''}`,
+        .text(`RUT: ${rut}   ?   ${tareas.length} tarea${tareas.length !== 1 ? 's' : ''}   ?   ${aprobG} aprobada${aprobG !== 1 ? 's' : ''}`,
           62, doc.y + 8, { align: 'right', width: 470 })
       doc.y += 36
 
@@ -279,7 +314,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
 
         const ok    = t.estado === 'APROBADA'
         const color = ok ? '#15803d' : '#b91c1c'
-        const etiq  = ok ? '✓ APROBADA' : '✗ PENDIENTE'
+        const etiq  = ok ? '? APROBADA' : '? PENDIENTE'
 
         doc.roundedRect(50, doc.y, 495, 1, 0).fill('#eee')
         doc.y += 6
@@ -289,7 +324,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
         doc.fillColor('#333')
           .font('Helvetica').text(`  Zona: ${t.zona}   |   Prioridad: ${t.prioridad}`)
         doc.fontSize(8).font('Helvetica').fillColor('#555')
-          .text(`        Instrucción: ${t.descripcion}`, 55)
+          .text(`        Instruccion: ${t.descripcion}`, 55)
 
         if (t.evidencia) {
           doc.fillColor('#444')
@@ -298,7 +333,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
 
         if (t.observacion) {
           doc.fillColor('#b91c1c')
-            .text(`        Observación: ${t.observacion}`, 55)
+            .text(`        Observacion: ${t.observacion}`, 55)
         }
 
         // Foto en el PDF
@@ -309,7 +344,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
               if (doc.y > 650) doc.addPage()
               doc.image(rutaFoto, 55, doc.y + 4, { width: 120, height: 80 })
               doc.y += 92
-            } catch { /* foto inválida, se omite */ }
+            } catch { /* foto invalida, se omite */ }
           }
         }
 
@@ -319,17 +354,17 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
       doc.moveDown(0.4)
     })
 
-    // Pie de página 
+    // -- Pie de pagina -----------------------------------------------------
     const pY = 780
     doc.moveTo(50, pY).lineTo(545, pY).strokeColor('#ddd').lineWidth(0.5).stroke()
 
-    // Línea de firma
+    // Linea de firma
     doc.moveTo(330, pY + 30).lineTo(540, pY + 30).strokeColor('#999').lineWidth(0.5).stroke()
     doc.fontSize(8).font('Helvetica').fillColor('#777')
       .text('Firma del Supervisor', 330, pY + 34, { width: 210, align: 'center' })
 
     doc.fontSize(7).fillColor('#bbb')
-      .text(`S.I. Protection · Informe Turno #${turno.id} · ${ahora.toLocaleString('es-CL')}`, 50, pY + 10, { width: 270 })
+      .text(`S.I. Protection ? Informe Turno #${turno.id} ? ${ahora.toLocaleString('es-CL')}`, 50, pY + 10, { width: 270 })
 
     doc.end()
   } catch {

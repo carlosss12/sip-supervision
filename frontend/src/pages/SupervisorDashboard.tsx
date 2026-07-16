@@ -1,4 +1,4 @@
-import { IconUser, IconList, IconAlert, IconBolt, IconChevronUp, IconChevronDown, IconArrowRight, IconPdf, IconDot } from '../components/Icons'
+import { IconUser, IconList, IconAlert, IconBolt, IconChevronUp, IconChevronDown, IconArrowRight, IconPdf, IconDot, IconCamera } from '../components/Icons'
 import { useState } from 'react'
 import StatsCards from '../components/StatsCards'
 import { Usuario } from '../types/Usuario'
@@ -18,6 +18,7 @@ interface Props {
   clausurarTurnoOperativo: () => void
   onGestionGuardias: () => void
   onHistorial: () => void
+  onCamaras: () => void
   onIncidencias: () => void
 }
 
@@ -156,8 +157,9 @@ export default function SupervisorDashboard(props: Props) {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
             {[
-              { icon: 'user', label: 'Gestionar guardias', fn: props.onGestionGuardias },
-              { icon: 'list', label: 'Historial de turnos', fn: props.onHistorial },
+              { icon: 'cam',   label: 'Camaras en vivo',    fn: props.onCamaras },
+              { icon: 'user',  label: 'Gestionar guardias', fn: props.onGestionGuardias },
+              { icon: 'list',  label: 'Historial de turnos', fn: props.onHistorial },
               { icon: 'alert', label: 'Incidencias',         fn: props.onIncidencias },
             ].map(btn => (
               <button key={btn.label}
@@ -175,6 +177,7 @@ export default function SupervisorDashboard(props: Props) {
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' }}
               >
+                { btn.icon === 'cam'   && <IconCamera size={13} color="var(--text-2)" /> }
                 { btn.icon === 'user'  && <IconUser  size={13} color="var(--text-2)" /> }
                 { btn.icon === 'list'  && <IconList  size={13} color="var(--text-2)" /> }
                 { btn.icon === 'alert' && <IconAlert size={13} color="var(--text-2)" /> }

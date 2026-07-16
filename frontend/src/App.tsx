@@ -5,49 +5,76 @@ import './index.css'
 import Header              from './components/Header'
 import NotificationToast   from './components/NotificationToast'
 import LoginPage           from './pages/LoginPage'
+import InicioTurno         from './pages/InicioTurno'
 import SupervisorDashboard from './pages/SupervisorDashboard'
 import GuardiaDashboard    from './pages/GuardiaDashboard'
 import GestionGuardias     from './pages/GestionGuardias'
 import HistorialTurnos     from './pages/HistorialTurnos'
 import Incidencias         from './pages/Incidencias'
 import PerfilSupervisor    from './pages/PerfilSupervisor'
+import VistaCamaras        from './pages/VistaCamaras'
+import EsperaTurno         from './pages/EsperaTurno'
 
 import { Usuario }                                      from './types/Usuario'
 import { Tarea, EvidenciaPayload, ValidarTareaPayload } from './types/Tarea'
 
 type TipoToast = 'exito' | 'error' | 'alerta'
-type Vista      = 'dashboard' | 'guardias' | 'historial' | 'incidencias' | 'perfil'
+type Vista      = 'dashboard' | 'guardias' | 'historial' | 'incidencias' | 'perfil' | 'camaras'
 interface Toast  { mensaje: string; tipo: TipoToast }
 
 export default function App() {
 
+  // -- Sesion ----------------------------------------------------------------
   const [usuario, setUsuario] = useState<Usuario | null>(() => {
     const s = localStorage.getItem('usuario')
     return s ? JSON.parse(s) : null
   })
   const [vista, setVista] = useState<Vista>('dashboard')
 
+  // -- Estado del turno ------------------------------------------------------
+  const [turnoActivo, setTurnoActivo] = useState<boolean | null>(null) // null = cargando
+
+  // -- Datos del sistema -----------------------------------------------------
   const [guardias, setGuardias] = useState<Usuario[]>([])
   const [tareas,   setTareas]   = useState<Tarea[]>([])
 
+  // -- Form nueva tarea ------------------------------------------------------
   const [nuevaZona,         setNuevaZona]         = useState('')
   const [nuevaDesc,         setNuevaDesc]         = useState('')
   const [nuevaPrioridad,    setNuevaPrioridad]    = useState<'NORMAL' | 'URGENTE'>('NORMAL')
   const [guardiaAsignadoId, setGuardiaAsignadoId] = useState('')
   const [obsSupervisor,     setObsSupervisor]     = useState<Record<number, string>>({})
 
+  // -- Form evidencia --------------------------------------------------------
   const [comentarioGuardia, setComentarioGuardia] = useState<Record<number, string>>({})
   const [imagenBase64,      setImagenBase64]      = useState<Record<number, string>>({})
   const fileInputRef = useRef<Record<number, HTMLInputElement | null>>({})
 
+  // -- Toast -----------------------------------------------------------------
   const [toast, setToast] = useState<Toast | null>(null)
   const mostrar = (mensaje: string, tipo: TipoToast = 'exito') => {
     setToast({ mensaje, tipo })
     setTimeout(() => setToast(null), 4000)
   }
 
-  const cargarDatosSistema = useCallback(async () => {
+  // -- Verificar si hay turno activo -----------------------------------------
+  const verificarTurno = useCallback(async () => {
     if (!usuario) return
+    try {
+      const res = await apiClient.get<{ turno: any }>('/turnos/activo')
+      setTurnoActivo(!!res.data.turno)
+    } catch {
+      setTurnoActivo(false)
+    }
+  }, [usuario])
+
+  useEffect(() => {
+    if (usuario) verificarTurno()
+  }, [usuario, verificarTurno])
+
+  // -- Carga de datos del sistema --------------------------------------------
+  const cargarDatosSistema = useCallback(async () => {
+    if (!usuario || !turnoActivo) return
     try {
       const rTareas = await apiClient.get<Tarea[]>('/tareas')
       setTareas(rTareas.data)
@@ -56,28 +83,38 @@ export default function App() {
         setGuardias(rGuardias.data)
       }
     } catch { /* polling silencioso */ }
-  }, [usuario])
+  }, [usuario, turnoActivo])
 
   useEffect(() => {
-    if (!usuario) return
+    if (!usuario || !turnoActivo) return
     cargarDatosSistema()
     const iv = setInterval(cargarDatosSistema, 4000)
     return () => clearInterval(iv)
-  }, [usuario, cargarDatosSistema])
+  }, [usuario, turnoActivo, cargarDatosSistema])
 
+  // -- Login -----------------------------------------------------------------
   const handleLogin = (u: Usuario) => {
     setUsuario(u)
     mostrar('Sesion iniciada correctamente.')
   }
 
+  // -- Logout ----------------------------------------------------------------
   const logout = () => {
     localStorage.clear()
     setUsuario(null)
     setTareas([])
     setGuardias([])
+    setTurnoActivo(null)
     setVista('dashboard')
   }
 
+  // -- Turno iniciado --------------------------------------------------------
+  const handleTurnoIniciado = () => {
+    setTurnoActivo(true)
+    mostrar('Turno iniciado correctamente.')
+  }
+
+  // -- Crear tarea -----------------------------------------------------------
   const crearOrdenTrabajo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nuevaZona || !nuevaDesc || !guardiaAsignadoId || !usuario) return
@@ -86,21 +123,16 @@ export default function App() {
         zona: nuevaZona, descripcion: nuevaDesc, prioridad: nuevaPrioridad,
         guardiaId: Number(guardiaAsignadoId), supervisorId: usuario.id,
       })
-      setNuevaZona('')
-      setNuevaDesc('')
-      setGuardiaAsignadoId('')
-      setNuevaPrioridad('NORMAL')
+      setNuevaZona(''); setNuevaDesc(''); setGuardiaAsignadoId(''); setNuevaPrioridad('NORMAL')
       mostrar('Tarea asignada correctamente.')
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al crear la tarea.', 'error')
-    }
+    } catch { mostrar('Error al crear la tarea.', 'error') }
   }
 
+  // -- Validar tarea ---------------------------------------------------------
   const dictaminarTarea = async (tareaId: number, estado: 'APROBADA' | 'RECHAZADA') => {
     if (estado === 'RECHAZADA' && !obsSupervisor[tareaId]?.trim()) {
-      mostrar('Ingresa una observacion para rechazar.', 'alerta')
-      return
+      mostrar('Ingresa una observacion para rechazar.', 'alerta'); return
     }
     try {
       const payload: ValidarTareaPayload = { estado, observacion: obsSupervisor[tareaId] }
@@ -108,13 +140,12 @@ export default function App() {
       mostrar(estado === 'APROBADA' ? 'Tarea aprobada.' : 'Tarea devuelta al guardia.')
       setObsSupervisor(prev => { const s = { ...prev }; delete s[tareaId]; return s })
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al validar la tarea.', 'error')
-    }
+    } catch { mostrar('Error al validar la tarea.', 'error') }
   }
 
+  // -- Cerrar turno ----------------------------------------------------------
   const clausurarTurnoOperativo = async () => {
-    if (!window.confirm('Cerrar el turno y descargar el informe PDF?')) return
+    if (!window.confirm('Cerrar el turno y generar el informe PDF?')) return
     try {
       const res = await apiClient.post('/turnos/cerrar', {}, { responseType: 'blob' })
       const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
@@ -124,15 +155,17 @@ export default function App() {
       link.click()
       URL.revokeObjectURL(url)
       mostrar('Turno cerrado. Informe descargado.')
-      cargarDatosSistema()
-    } catch {
-      mostrar('Error al cerrar el turno.', 'error')
-    }
+      // Limpiar estado y volver a pantalla de inicio de turno
+      setTareas([])
+      setGuardias([])
+      setTurnoActivo(false)
+      setVista('dashboard')
+    } catch { mostrar('Error al cerrar el turno.', 'error') }
   }
 
+  // -- Evidencia -------------------------------------------------------------
   const capturarFotoNativa = (e: React.ChangeEvent<HTMLInputElement>, tareaId: number) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
     reader.onloadend = () => setImagenBase64(prev => ({ ...prev, [tareaId]: reader.result as string }))
     reader.readAsDataURL(file)
@@ -150,13 +183,29 @@ export default function App() {
       setImagenBase64(prev =>      { const s = { ...prev }; delete s[tareaId]; return s })
       mostrar('Evidencia enviada al supervisor.')
       cargarDatosSistema()
-    } catch {
-      mostrar('Error al enviar la evidencia.', 'error')
-    }
+    } catch { mostrar('Error al enviar la evidencia.', 'error') }
   }
 
-  if (!usuario) {
-    return <LoginPage onLogin={handleLogin} />
+  // -- Render ----------------------------------------------------------------
+  if (!usuario) return <LoginPage onLogin={handleLogin} />
+
+  // Cargando estado del turno
+  if (turnoActivo === null) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--muted)', fontSize: 13 }}>
+        Cargando...
+      </div>
+    )
+  }
+
+  // Sin turno activo — supervisor ve pantalla de inicio, guardia ve pantalla de espera
+  if (turnoActivo === false) {
+    if (usuario.rol === 'SUPERVISOR') {
+      return <InicioTurno onTurnoIniciado={handleTurnoIniciado} nombreSupervisor={usuario.nombre} />
+    }
+    if (usuario.rol === 'GUARDIA') {
+      return <EsperaTurno nombreGuardia={usuario.nombre} onTurnoDisponible={() => setTurnoActivo(true)} />
+    }
   }
 
   return (
@@ -184,6 +233,7 @@ export default function App() {
             onGestionGuardias={() => setVista('guardias')}
             onHistorial={() => setVista('historial')}
             onIncidencias={() => setVista('incidencias')}
+            onCamaras={() => setVista('camaras')}
           />
         )}
 
@@ -196,10 +246,7 @@ export default function App() {
         )}
 
         {usuario.rol === 'SUPERVISOR' && vista === 'incidencias' && (
-          <Incidencias
-            onVolver={() => setVista('dashboard')}
-            supervisorId={usuario.id}
-          />
+          <Incidencias onVolver={() => setVista('dashboard')} supervisorId={usuario.id} />
         )}
 
         {usuario.rol === 'SUPERVISOR' && vista === 'perfil' && (
@@ -208,6 +255,10 @@ export default function App() {
             onVolver={() => setVista('dashboard')}
             onActualizado={u => setUsuario(u)}
           />
+        )}
+
+        {usuario.rol === 'SUPERVISOR' && vista === 'camaras' && (
+          <VistaCamaras onVolver={() => setVista('dashboard')} />
         )}
 
         {usuario.rol === 'GUARDIA' && (

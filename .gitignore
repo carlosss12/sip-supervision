@@ -7,8 +7,9 @@ frontend/node_modules/
 backend/dist/
 frontend/dist/
 
-# Variables de entorno
-# backend/.env se incluye en el repo para facilitar el despliegue en evaluacion
+# Variables de entorno — NO subir al repo
+.env
+backend/.env
 frontend/.env
 
 # Docker volumes

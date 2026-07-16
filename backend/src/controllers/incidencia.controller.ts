@@ -2,6 +2,7 @@ import { Response } from 'express'
 import prisma from '../lib/prisma'
 import { AuthRequest } from '../middlewares/auth.middleware'
 
+// -- GET /api/incidencias ----------------------------------------------------
 export const getIncidencias = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const incidencias = await prisma.incidencia.findMany({
@@ -13,7 +14,8 @@ export const getIncidencias = async (_req: AuthRequest, res: Response): Promise<
     res.status(500).json({ error: 'Error al obtener incidencias.' })
   }
 }
-─
+
+// -- POST /api/incidencias ---------------------------------------------------
 export const crearIncidencia = async (req: AuthRequest, res: Response): Promise<void> => {
   const { titulo, descripcion, zona, gravedad } = req.body
 
@@ -37,6 +39,7 @@ export const crearIncidencia = async (req: AuthRequest, res: Response): Promise<
   }
 }
 
+// -- PUT /api/incidencias/:id ------------------------------------------------
 export const actualizarIncidencia = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = Number(req.params.id)
   const { estado, resolucion } = req.body

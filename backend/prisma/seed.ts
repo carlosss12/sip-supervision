@@ -4,9 +4,8 @@ import bcrypt from 'bcrypt'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('⏳ Ejecutando seed...')
+  console.log('Ejecutando seed...')
 
-  // Solo se crea el supervisor 
   const hash = await bcrypt.hash('admin123', 10)
   await prisma.usuario.upsert({
     where:  { email: 'supervisor@sip.cl' },
@@ -18,18 +17,10 @@ async function main() {
       rol:      Rol.SUPERVISOR,
     },
   })
-  console.log('  ✓ supervisor@sip.cl')
-
-  // Turno inicial
-  const turnoAbierto = await prisma.turno.findFirst({ where: { abierto: true } })
-  if (!turnoAbierto) {
-    await prisma.turno.create({ data: { abierto: true } })
-    console.log('  ✓ Turno inicial creado')
-  }
-
-  console.log('✅ Seed completado')
+  console.log('  ok supervisor@sip.cl')
+  console.log('Seed completado')
 }
 
 main()
-  .catch(e => { console.error('❌', e); process.exit(1) })
+  .catch(e => { console.error(e); process.exit(1) })
   .finally(() => prisma.$disconnect())
