@@ -6,6 +6,7 @@ import authRoutes       from './routes/auth.routes'
 import tareaRoutes      from './routes/tarea.routes'
 import incidenciaRoutes from './routes/incidencia.routes'
 import camaraRoutes     from './routes/camara.routes'
+import pushRoutes       from './routes/push.routes'
 
 dotenv.config()
 
@@ -21,6 +22,7 @@ app.use('/api', authRoutes)
 app.use('/api', tareaRoutes)
 app.use('/api', incidenciaRoutes)
 app.use('/api', camaraRoutes)
+app.use('/api', pushRoutes)
 
 app.get('/api/health', (_req, res) => {
   const ahora = new Date()
@@ -36,4 +38,4 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-app.listen(PORT, () => console.log(`✅ Backend S.I. Protection corriendo en puerto ${PORT}`))
+app.listen(PORT, () => console.log(`? Backend S.I. Protection corriendo en puerto ${PORT}`))

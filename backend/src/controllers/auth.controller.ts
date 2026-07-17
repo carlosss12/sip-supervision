@@ -157,7 +157,6 @@ export const actualizarGuardia = async (req: AuthRequest, res: Response): Promis
 export const eliminarGuardia = async (req: AuthRequest, res: Response): Promise<void> => {
   const id = Number(req.params.id)
   try {
-    // Desactiva en lugar de eliminar para mantener historial
     await prisma.usuario.update({
       where: { id },
       data:  { activo: false },

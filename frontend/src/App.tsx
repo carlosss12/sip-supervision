@@ -15,6 +15,8 @@ import PerfilSupervisor    from './pages/PerfilSupervisor'
 import VistaCamaras        from './pages/VistaCamaras'
 import EsperaTurno         from './pages/EsperaTurno'
 
+import { useWebPush } from './hooks/useWebPush'
+import { useNotificaciones, solicitarPermisoNotificaciones, limpiarBadgeTitulo } from './hooks/useNotificaciones'
 import { Usuario }                                      from './types/Usuario'
 import { Tarea, EvidenciaPayload, ValidarTareaPayload } from './types/Tarea'
 
@@ -24,40 +26,33 @@ interface Toast  { mensaje: string; tipo: TipoToast }
 
 export default function App() {
 
-  // -- Sesion ----------------------------------------------------------------
   const [usuario, setUsuario] = useState<Usuario | null>(() => {
     const s = localStorage.getItem('usuario')
     return s ? JSON.parse(s) : null
   })
   const [vista, setVista] = useState<Vista>('dashboard')
 
-  // -- Estado del turno ------------------------------------------------------
   const [turnoActivo, setTurnoActivo] = useState<boolean | null>(null) // null = cargando
 
-  // -- Datos del sistema -----------------------------------------------------
   const [guardias, setGuardias] = useState<Usuario[]>([])
   const [tareas,   setTareas]   = useState<Tarea[]>([])
 
-  // -- Form nueva tarea ------------------------------------------------------
   const [nuevaZona,         setNuevaZona]         = useState('')
   const [nuevaDesc,         setNuevaDesc]         = useState('')
   const [nuevaPrioridad,    setNuevaPrioridad]    = useState<'NORMAL' | 'URGENTE'>('NORMAL')
   const [guardiaAsignadoId, setGuardiaAsignadoId] = useState('')
   const [obsSupervisor,     setObsSupervisor]     = useState<Record<number, string>>({})
 
-  // -- Form evidencia --------------------------------------------------------
   const [comentarioGuardia, setComentarioGuardia] = useState<Record<number, string>>({})
   const [imagenBase64,      setImagenBase64]      = useState<Record<number, string>>({})
   const fileInputRef = useRef<Record<number, HTMLInputElement | null>>({})
 
-  // -- Toast -----------------------------------------------------------------
   const [toast, setToast] = useState<Toast | null>(null)
   const mostrar = (mensaje: string, tipo: TipoToast = 'exito') => {
     setToast({ mensaje, tipo })
     setTimeout(() => setToast(null), 4000)
   }
 
-  // -- Verificar si hay turno activo -----------------------------------------
   const verificarTurno = useCallback(async () => {
     if (!usuario) return
     try {
@@ -72,7 +67,6 @@ export default function App() {
     if (usuario) verificarTurno()
   }, [usuario, verificarTurno])
 
-  // -- Carga de datos del sistema --------------------------------------------
   const cargarDatosSistema = useCallback(async () => {
     if (!usuario || !turnoActivo) return
     try {
@@ -92,13 +86,11 @@ export default function App() {
     return () => clearInterval(iv)
   }, [usuario, turnoActivo, cargarDatosSistema])
 
-  // -- Login -----------------------------------------------------------------
   const handleLogin = (u: Usuario) => {
     setUsuario(u)
     mostrar('Sesion iniciada correctamente.')
   }
 
-  // -- Logout ----------------------------------------------------------------
   const logout = () => {
     localStorage.clear()
     setUsuario(null)
@@ -108,13 +100,11 @@ export default function App() {
     setVista('dashboard')
   }
 
-  // -- Turno iniciado --------------------------------------------------------
   const handleTurnoIniciado = () => {
     setTurnoActivo(true)
     mostrar('Turno iniciado correctamente.')
   }
 
-  // -- Crear tarea -----------------------------------------------------------
   const crearOrdenTrabajo = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!nuevaZona || !nuevaDesc || !guardiaAsignadoId || !usuario) return
@@ -129,7 +119,6 @@ export default function App() {
     } catch { mostrar('Error al crear la tarea.', 'error') }
   }
 
-  // -- Validar tarea ---------------------------------------------------------
   const dictaminarTarea = async (tareaId: number, estado: 'APROBADA' | 'RECHAZADA') => {
     if (estado === 'RECHAZADA' && !obsSupervisor[tareaId]?.trim()) {
       mostrar('Ingresa una observacion para rechazar.', 'alerta'); return
@@ -143,7 +132,6 @@ export default function App() {
     } catch { mostrar('Error al validar la tarea.', 'error') }
   }
 
-  // -- Cerrar turno ----------------------------------------------------------
   const clausurarTurnoOperativo = async () => {
     if (!window.confirm('Cerrar el turno y generar el informe PDF?')) return
     try {
@@ -160,10 +148,10 @@ export default function App() {
       setGuardias([])
       setTurnoActivo(false)
       setVista('dashboard')
+      limpiarBadgeTitulo()
     } catch { mostrar('Error al cerrar el turno.', 'error') }
   }
 
-  // -- Evidencia -------------------------------------------------------------
   const capturarFotoNativa = (e: React.ChangeEvent<HTMLInputElement>, tareaId: number) => {
     const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
@@ -186,10 +174,16 @@ export default function App() {
     } catch { mostrar('Error al enviar la evidencia.', 'error') }
   }
 
-  // -- Render ----------------------------------------------------------------
+  useWebPush(!!usuario)
+
+  useNotificaciones({
+    tareas,
+    usuarioId: usuario?.id ?? 0,
+    rol: usuario?.rol ?? 'GUARDIA',
+  })
+
   if (!usuario) return <LoginPage onLogin={handleLogin} />
 
-  // Cargando estado del turno
   if (turnoActivo === null) {
     return (
       <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--muted)', fontSize: 13 }}>
@@ -198,7 +192,6 @@ export default function App() {
     )
   }
 
-  // Sin turno activo — supervisor ve pantalla de inicio, guardia ve pantalla de espera
   if (turnoActivo === false) {
     if (usuario.rol === 'SUPERVISOR') {
       return <InicioTurno onTurnoIniciado={handleTurnoIniciado} nombreSupervisor={usuario.nombre} />

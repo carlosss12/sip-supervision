@@ -1,3 +1,4 @@
+import { limpiarBadgeTitulo } from '../hooks/useNotificaciones'
 import { IconUser, IconList, IconAlert, IconBolt, IconChevronUp, IconChevronDown, IconArrowRight, IconPdf, IconDot, IconCamera } from '../components/Icons'
 import { useState } from 'react'
 import StatsCards from '../components/StatsCards'
@@ -85,14 +86,14 @@ export default function SupervisorDashboard(props: Props) {
 
         {/* ── Sidebar izquierdo ── */}
         <aside style={{
-          width: 240, flexShrink: 0,
+          width: 320, flexShrink: 0,
           background: 'var(--surface)',
           borderRight: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column',
-          padding: '16px', overflowY: 'auto',
+          padding: '20px', overflowY: 'auto',
           gap: 0,
         }}>
-          <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 10, display: 'block' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.1em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 12, display: 'block' }}>
             Nueva tarea
           </span>
 
@@ -103,7 +104,7 @@ export default function SupervisorDashboard(props: Props) {
           ) : (
             <form style={{ display: 'flex', flexDirection: 'column', gap: 8 }} onSubmit={props.crearOrdenTrabajo}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-2)' }}>Guardia <span style={{ color: 'var(--primary)' }}>*</span></label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Guardia <span style={{ color: 'var(--primary)' }}>*</span></label>
                 <select className="form-control-sip" required style={{ padding: '8px 10px' }}
                   value={props.guardiaAsignadoId}
                   onChange={e => props.setGuardiaAsignadoId(e.target.value)}>
@@ -113,7 +114,7 @@ export default function SupervisorDashboard(props: Props) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-2)' }}>Zona <span style={{ color: 'var(--primary)' }}>*</span></label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Zona <span style={{ color: 'var(--primary)' }}>*</span></label>
                 <input className="form-control-sip" required style={{ padding: '8px 10px' }}
                   placeholder="Ej: Cámara 04 — Norte"
                   value={props.nuevaZona}
@@ -121,22 +122,22 @@ export default function SupervisorDashboard(props: Props) {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-2)' }}>Instrucción <span style={{ color: 'var(--primary)' }}>*</span></label>
-                <textarea className="form-control-sip" required style={{ padding: '8px 10px', height: 60, resize: 'none' }}
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Instrucción <span style={{ color: 'var(--primary)' }}>*</span></label>
+                <textarea className="form-control-sip" required style={{ padding: '10px 12px', height: 80, resize: 'none' }}
                   placeholder="Describe la acción..."
                   value={props.nuevaDesc}
                   onChange={e => props.setNuevaDesc(e.target.value)} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-2)' }}>Prioridad</label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Prioridad</label>
                 <div style={{ display: 'flex', gap: 5 }}>
                   {(['NORMAL', 'URGENTE'] as const).map(p => (
                     <button key={p} type="button"
                       onClick={() => props.setNuevaPrioridad(p)}
                       style={{
-                        flex: 1, padding: '6px', borderRadius: 6,
-                        border: '1px solid', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        flex: 1, padding: '8px', borderRadius: 6,
+                        border: '1px solid', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                         background:  props.nuevaPrioridad === p ? (p === 'URGENTE' ? 'var(--primary-dim)' : 'var(--surface-3)') : 'transparent',
                         borderColor: props.nuevaPrioridad === p ? (p === 'URGENTE' ? 'var(--primary-bd)'  : 'var(--border-2)')   : 'var(--border)',
                         color:       props.nuevaPrioridad === p ? (p === 'URGENTE' ? 'var(--primary)'     : 'var(--text)')        : 'var(--muted)',
@@ -147,7 +148,7 @@ export default function SupervisorDashboard(props: Props) {
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary-sip" style={{ width: '100%', padding: '9px', fontSize: 12 }}>
+              <button type="submit" className="btn-primary-sip" style={{ width: '100%', padding: '12px', fontSize: 14 }}>
                 Asignar tarea
               </button>
             </form>
@@ -188,7 +189,7 @@ export default function SupervisorDashboard(props: Props) {
 
           <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
 
-          <button className="btn-danger-sip" style={{ width: '100%', fontSize: 11, padding: '9px' }}
+          <button className="btn-danger-sip" style={{ width: '100%', fontSize: 13, padding: '12px' }}
             onClick={props.clausurarTurnoOperativo}>
             Cerrar turno y generar informe
           </button>
@@ -246,7 +247,7 @@ export default function SupervisorDashboard(props: Props) {
                 const seleccionada = tareaActual?.id === t.id
                 return (
                   <div key={t.id}
-                    onClick={() => setTareaSeleccion(t)}
+                    onClick={() => { setTareaSeleccion(t); limpiarBadgeTitulo() }}
                     style={{
                       padding: '12px 16px',
                       background: seleccionada ? 'var(--surface-3)' : 'var(--surface)',
@@ -378,7 +379,7 @@ export default function SupervisorDashboard(props: Props) {
             {tareaActual.estado === 'EN_REVISION' && (
               <div style={{ padding: '14px 18px', borderTop: '1px solid var(--border)', background: 'var(--surface-2)', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                  <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-2)' }}>Observación del supervisor</label>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>Observación del supervisor</label>
                   <input
                     className="form-control-sip"
                     style={{ padding: '8px 12px', fontSize: 12 }}

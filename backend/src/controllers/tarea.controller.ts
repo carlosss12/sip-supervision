@@ -1,3 +1,4 @@
+import { enviarPushAUsuario } from './push.controller'
 import { Response } from 'express'
 import PDFDocument from 'pdfkit'
 import fs from 'fs'
@@ -15,7 +16,6 @@ const ensureUploads = () => {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
 }
 
-// -- GET /api/tareas ---------------------------------------------------------
 export const getTareas = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const tareas = await prisma.tarea.findMany({
@@ -28,7 +28,6 @@ export const getTareas = async (_req: AuthRequest, res: Response): Promise<void>
   }
 }
 
-// -- POST /api/tareas --------------------------------------------------------
 export const crearTarea = async (req: AuthRequest, res: Response): Promise<void> => {
   const { descripcion, zona, prioridad, guardiaId, supervisorId } = req.body
 
@@ -52,13 +51,19 @@ export const crearTarea = async (req: AuthRequest, res: Response): Promise<void>
       },
       include: INCLUDE,
     })
+
+    await enviarPushAUsuario(
+      Number(guardiaId),
+      'Nueva tarea asignada',
+      `${zona}: ${descripcion}`
+    ).catch(() => {})
+
     res.status(201).json(tarea)
   } catch {
     res.status(500).json({ error: 'Error al crear la tarea.' })
   }
 }
 
-// -- POST /api/evidencias ----------------------------------------------------
 export const subirEvidencia = async (req: AuthRequest, res: Response): Promise<void> => {
   const { tareaId, comentario, fotoBase64 } = req.body
 
@@ -100,7 +105,6 @@ export const subirEvidencia = async (req: AuthRequest, res: Response): Promise<v
   }
 }
 
-// -- PUT /api/tareas/:id/validar ---------------------------------------------
 export const validarTarea = async (req: AuthRequest, res: Response): Promise<void> => {
   const tareaId              = Number(req.params.id)
   const { estado, observacion } = req.body
@@ -116,7 +120,6 @@ export const validarTarea = async (req: AuthRequest, res: Response): Promise<voi
       res.status(409).json({ error: 'Solo se pueden validar tareas EN_REVISION.' }); return
     }
 
-    // RECHAZADA ? vuelve a PENDIENTE para que el guardia corrija y reenvie
     const nuevoEstado = estado === 'APROBADA' ? 'APROBADA' : 'PENDIENTE'
 
     const actualizada = await prisma.tarea.update({
@@ -124,13 +127,21 @@ export const validarTarea = async (req: AuthRequest, res: Response): Promise<voi
       data:    { estado: nuevoEstado, observacion: observacion?.trim() || null },
       include: INCLUDE,
     })
+
+    if (estado === 'RECHAZADA') {
+      await enviarPushAUsuario(
+        tarea.guardiaId,
+        'Tarea devuelta por el supervisor',
+        `${tarea.zona}: ${observacion?.trim() || 'Revisa la observacion en el sistema.'}`
+      ).catch(() => {})
+    }
+
     res.json(actualizada)
   } catch {
     res.status(500).json({ error: 'Error al validar la tarea.' })
   }
 }
 
-// -- GET /api/turnos/historial -----------------------------------------------
 export const getHistorialTurnos = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turnos = await prisma.turno.findMany({
@@ -150,8 +161,6 @@ export const getHistorialTurnos = async (_req: AuthRequest, res: Response): Prom
   }
 }
 
-
-// -- POST /api/turnos/iniciar -----------------------------------------------
 export const iniciarTurno = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turnoActivo = await prisma.turno.findFirst({ where: { abierto: true } })
@@ -166,7 +175,6 @@ export const iniciarTurno = async (_req: AuthRequest, res: Response): Promise<vo
   }
 }
 
-// -- GET /api/turnos/activo -------------------------------------------------
 export const getTurnoActivo = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turno = await prisma.turno.findFirst({ where: { abierto: true } })
@@ -176,7 +184,6 @@ export const getTurnoActivo = async (_req: AuthRequest, res: Response): Promise<
   }
 }
 
-// -- POST /api/turnos/cerrar -------------------------------------------------
 export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const turno = await prisma.turno.findFirst({
@@ -219,7 +226,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     res.setHeader('Content-Disposition', `attachment; filename="informe_turno_${turno.id}.pdf"`)
     doc.pipe(res)
 
-    // -- Encabezado -------------------------------------------------------
+    // Encabezado 
     doc.rect(0, 0, 595, 80).fill('#0d0f12')
     doc.fontSize(20).font('Helvetica-Bold').fillColor('#f5a623')
       .text('S.I. PROTECTION', 50, 22)
@@ -237,7 +244,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     doc.fillColor('#000')
     doc.y = 95
 
-    // -- Datos del turno ---------------------------------------------------
+    // Datos del turno 
     doc.roundedRect(50, doc.y, 495, 52, 4).fill('#f8f9fa')
     const iy = doc.y + 10
     doc.fontSize(8).font('Helvetica').fillColor('#888')
@@ -257,7 +264,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
 
     doc.y = iy + 52
 
-    // -- Resumen estadistico -----------------------------------------------
+    // Resumen estadistico 
     doc.moveDown(0.8)
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#222').text('Resumen del turno')
     doc.moveDown(0.4)
@@ -285,11 +292,11 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
 
     doc.y = statY + 62
 
-    // -- Separador ---------------------------------------------------------
+    // Separador 
     doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#ddd').lineWidth(0.5).stroke()
     doc.moveDown(0.8)
 
-    // -- Detalle por guardia -----------------------------------------------
+    // Detalle por guardia 
     doc.fontSize(12).font('Helvetica-Bold').fillColor('#222').text('Detalle por guardia')
     doc.moveDown(0.5)
 
@@ -354,7 +361,7 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
       doc.moveDown(0.4)
     })
 
-    // -- Pie de pagina -----------------------------------------------------
+    // Pie de pagina 
     const pY = 780
     doc.moveTo(50, pY).lineTo(545, pY).strokeColor('#ddd').lineWidth(0.5).stroke()
 

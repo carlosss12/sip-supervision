@@ -17,13 +17,11 @@ export default function EsperaTurno({ nombreGuardia, onTurnoDisponible }: Props)
   const [horaActual, setHoraActual] = useState(new Date())
   const turno = turnoActualLabel()
 
-  // Reloj en tiempo real
   useEffect(() => {
     const iv = setInterval(() => setHoraActual(new Date()), 1000)
     return () => clearInterval(iv)
   }, [])
 
-  // Verifica cada 10 segundos si el supervisor ya inicio el turno
   useEffect(() => {
     const check = async () => {
       try {

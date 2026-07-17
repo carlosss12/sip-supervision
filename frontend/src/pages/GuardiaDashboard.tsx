@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { limpiarBadgeTitulo } from '../hooks/useNotificaciones'
 import { IconCamera, IconCheck, IconX, IconAlert } from '../components/Icons'
 import { Tarea } from '../types/Tarea'
 import TaskCard from '../components/TaskCard'
@@ -30,6 +32,10 @@ function turnoActualColor(): string {
 }
 
 export default function GuardiaDashboard(props: Props) {
+  useEffect(() => {
+    limpiarBadgeTitulo()
+  }, [props.tareas])
+
   const tareasGuardia = props.tareas.filter(t => t.guardia?.id === props.usuarioId)
   const activas       = tareasGuardia.filter(t => t.estado === 'PENDIENTE' || t.estado === 'EN_REVISION')
   const archivadas    = tareasGuardia.filter(t => t.estado === 'APROBADA'  || t.estado === 'RECHAZADA')

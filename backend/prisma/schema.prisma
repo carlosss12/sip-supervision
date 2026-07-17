@@ -58,6 +58,7 @@ model Usuario {
   tareasCreadas      Tarea[]      @relation("TareasCreadas")
   tareasAsignadas    Tarea[]      @relation("TareasAsignadas")
   incidenciasCreadas Incidencia[] @relation("IncidenciasCreadas")
+  pushSuscripciones  PushSuscripcion[]
 
   @@map("usuarios")
 }
@@ -109,4 +110,18 @@ model Incidencia {
   supervisorId Int
 
   @@map("incidencias")
+}
+
+model PushSuscripcion {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int
+  endpoint  String   @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  creadaEn  DateTime @default(now())
+
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, endpoint])
+  @@map("push_suscripciones")
 }

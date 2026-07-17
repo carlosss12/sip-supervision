@@ -7,7 +7,6 @@ const NVR_PORT = process.env.NVR_PORT || '49201'
 const NVR_USER = process.env.NVR_USER || 'admin'
 const NVR_PASS = process.env.NVR_PASS || 'Securitas2397*'
 
-// 32 canales del NVR - formato snapshot: /ISAPI/Streaming/channels/[ID*100+1]/picture
 const CAMARAS = [
   { id: 1,  nombre: 'C01 Ingreso Vehiculos' },
   { id: 2,  nombre: 'C02 Salida Vehiculos' },
@@ -43,12 +42,10 @@ const CAMARAS = [
   { id: 32, nombre: 'C32' },
 ]
 
-// GET /api/camaras
 export const getCamaras = (_req: AuthRequest, res: Response): void => {
   res.json(CAMARAS.map(c => ({ id: c.id, nombre: c.nombre })))
 }
 
-// GET /api/camaras/:id/snapshot
 export const getSnapshot = async (req: Request, res: Response): Promise<void> => {
   const camara = CAMARAS.find(c => c.id === Number(req.params.id))
   if (!camara) {
@@ -56,7 +53,6 @@ export const getSnapshot = async (req: Request, res: Response): Promise<void> =>
     return
   }
 
-  // Canal 1 = 101, Canal 2 = 201, etc.
   const canal = camara.id * 100 + 1
 
   try {
