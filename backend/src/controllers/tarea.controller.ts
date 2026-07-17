@@ -201,6 +201,11 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
       },
     })
 
+    const incidencias = await prisma.incidencia.findMany({
+      where:   { creadaEn: { gte: turno?.inicio ?? new Date() } },
+      orderBy: { creadaEn: 'asc' },
+    })
+
     if (!turno) { res.status(400).json({ error: 'No hay un turno activo.' }); return }
 
     await prisma.$transaction([
@@ -226,11 +231,12 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     })
 
     generarPDFTurno({
-      id:         turno.id,
-      inicio:     turno.inicio,
-      fin:        ahora,
-      tareas:     turno.tareas as any,
-      supervisor: turno.tareas[0]?.supervisor?.nombre ?? 'Supervisor',
+      id:          turno.id,
+      inicio:      turno.inicio,
+      fin:         ahora,
+      tareas:      turno.tareas as any,
+      supervisor:  turno.tareas[0]?.supervisor?.nombre ?? 'Supervisor',
+      incidencias: incidencias as any,
     }, res)
     return
   } catch {

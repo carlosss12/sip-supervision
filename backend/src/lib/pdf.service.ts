@@ -1,19 +1,23 @@
 import PDFDocument from 'pdfkit'
-import { Response }  from 'express'
+import { Response } from 'express'
 
-// Colores
 const C = {
-  negro:    '#000000',
-  blanco:   '#ffffff',
-  gris1:    '#f5f5f5',
-  gris2:    '#e0e0e0',
-  gris3:    '#888888',
-  gris4:    '#444444',
+  gris1:    '#f7f8fa',
+  gris2:    '#e5e7eb',
+  gris3:    '#9ca3af',
+  gris4:    '#374151',
+  gris5:    '#111827',
   primario: '#f5a623',
-  verde:    '#15803d',
-  rojo:     '#b91c1c',
-  azul:     '#1d4ed8',
-  encab:    '#1a1f2e',
+  verde:    '#16a34a',
+  verdeBg:  '#dcfce7',
+  rojo:     '#dc2626',
+  rojoBg:   '#fee2e2',
+  azul:     '#2563eb',
+  azulBg:   '#dbeafe',
+  amarillo: '#d97706',
+  amarilloBg: '#fef3c7',
+  encab:    '#0f172a',
+  encab2:   '#1e293b',
 }
 
 interface Tarea {
@@ -24,234 +28,285 @@ interface Tarea {
   estado:      string
   evidencia:   string | null
   observacion: string | null
-  supervisor?: { nombre: string } | null
   guardia?:    { nombre: string; rut: string | null } | null
+  supervisor?: { nombre: string } | null
+}
+
+interface Incidencia {
+  id:          number
+  titulo:      string
+  descripcion: string
+  zona:        string
+  gravedad:    string
+  estado:      string
+  resolucion:  string | null
+  creadaEn:    Date
 }
 
 interface DatosTurno {
-  id:     number
-  inicio: Date
-  fin:    Date
-  tareas: Tarea[]
-  supervisor: string
+  id:          number
+  inicio:      Date
+  fin:         Date
+  tareas:      Tarea[]
+  supervisor:  string
+  incidencias: Incidencia[]
 }
 
-function linea(doc: PDFKit.PDFDocument, y: number) {
-  doc.moveTo(50, y).lineTo(545, y).strokeColor(C.gris2).lineWidth(0.5).stroke()
+const L = 50, R = 545, W = 495
+const opts: Intl.DateTimeFormatOptions = { timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+
+function sep(doc: PDFKit.PDFDocument) {
+  doc.moveTo(L, doc.y).lineTo(R, doc.y).strokeColor(C.gris2).lineWidth(0.5).stroke()
+  doc.y += 8
 }
 
-function etiquetaEstado(estado: string): { texto: string; color: string; fondo: string } {
-  switch (estado) {
-    case 'APROBADA':    return { texto: 'APROBADA',    color: C.verde, fondo: '#dcfce7' }
-    case 'RECHAZADA':   return { texto: 'RECHAZADA',   color: C.rojo,  fondo: '#fee2e2' }
-    case 'EN_REVISION': return { texto: 'EN REVISION', color: C.azul,  fondo: '#dbeafe' }
-    default:            return { texto: 'PENDIENTE',   color: C.gris3, fondo: C.gris1 }
+function seccion(doc: PDFKit.PDFDocument, titulo: string) {
+  if (doc.y > 700) doc.addPage()
+  doc.y += 10
+  doc.rect(L, doc.y, W, 24).fill(C.gris1)
+  doc.fontSize(9).font('Helvetica-Bold').fillColor(C.gris4)
+    .text(titulo.toUpperCase(), L + 10, doc.y + 7, { width: W - 20, characterSpacing: 0.5 })
+  doc.y += 30
+}
+
+function badge(doc: PDFKit.PDFDocument, x: number, y: number, texto: string, color: string, fondo: string, ancho = 70) {
+  doc.roundedRect(x, y, ancho, 14, 3).fill(fondo)
+  doc.fontSize(7).font('Helvetica-Bold').fillColor(color)
+    .text(texto, x, y + 3, { width: ancho, align: 'center' })
+}
+
+function badgeEstado(t: Tarea): { texto: string; color: string; fondo: string } {
+  const conRechazo = !!t.observacion
+  if (t.estado === 'APROBADA' && conRechazo)
+    return { texto: 'APROBADA*', color: C.amarillo, fondo: C.amarilloBg }
+  switch (t.estado) {
+    case 'APROBADA':    return { texto: 'APROBADA',    color: C.verde,   fondo: C.verdeBg   }
+    case 'RECHAZADA':   return { texto: 'RECHAZADA',   color: C.rojo,    fondo: C.rojoBg    }
+    case 'EN_REVISION': return { texto: 'EN REVISION', color: C.azul,    fondo: C.azulBg    }
+    default:            return { texto: 'PENDIENTE',   color: C.gris3,   fondo: C.gris1     }
   }
 }
 
 export function generarPDFTurno(datos: DatosTurno, res: Response) {
-  const doc = new PDFDocument({ margin: 50, size: 'A4', bufferPages: true })
-
+  const doc = new PDFDocument({ margin: 0, size: 'A4', bufferPages: true })
   res.setHeader('Content-Type', 'application/pdf')
   res.setHeader('Content-Disposition', `attachment; filename="informe_turno_${datos.id}.pdf"`)
   doc.pipe(res)
 
-  const L = 50   // margen izquierdo
-  const R = 545  // margen derecho
-  const W = R - L // ancho util
+  // ── ENCABEZADO ────────────────────────────────────────────────────────
+  doc.rect(0, 0, 595, 100).fill(C.encab)
+  doc.rect(0, 100, 595, 4).fill(C.primario)
 
-  // ── ENCABEZADO ────────────────────────────────────────────────────────────
-  doc.rect(0, 0, 595, 90).fill(C.encab)
+  doc.fontSize(24).font('Helvetica-Bold').fillColor(C.primario)
+    .text('S.I. PROTECTION', L, 22)
+  doc.fontSize(9).font('Helvetica').fillColor('#94a3b8')
+    .text('Sistema de Supervision Operativa de Personal de Seguridad', L, 50)
+  doc.fontSize(8).fillColor('#64748b')
+    .text(`Generado el ${datos.fin.toLocaleString('es-CL', opts)}`, L, 66)
 
-  doc.fontSize(22).font('Helvetica-Bold').fillColor(C.primario)
-    .text('S.I. PROTECTION', L, 20)
-  doc.fontSize(10).font('Helvetica').fillColor('#8b92a1')
-    .text('Sistema de Supervision Operativa de Personal de Seguridad', L, 46)
-  doc.fontSize(8).fillColor('#4a5060')
-    .text(`Generado el ${datos.fin.toLocaleString('es-CL', { timeZone: 'America/Santiago' })}`, L, 62)
+  doc.fontSize(32).font('Helvetica-Bold').fillColor(C.primario)
+    .text(`#${datos.id}`, 0, 18, { align: 'right', width: 540 })
+  doc.fontSize(8).font('Helvetica').fillColor('#64748b')
+    .text('N° DE TURNO', 0, 58, { align: 'right', width: 540 })
 
-  doc.fontSize(26).font('Helvetica-Bold').fillColor(C.primario)
-    .text(`#${datos.id}`, 0, 20, { align: 'right', width: 540 })
-  doc.fontSize(8).font('Helvetica').fillColor('#4a5060')
-    .text('N° DE TURNO', 0, 52, { align: 'right', width: 540 })
+  doc.y = 118
 
-  doc.y = 106
-
-  // ── DATOS DEL TURNO ───────────────────────────────────────────────────────
-  doc.roundedRect(L, doc.y, W, 60, 4).fill(C.gris1)
+  // ── DATOS DEL TURNO ───────────────────────────────────────────────────
+  doc.rect(L, doc.y, W, 54).fill(C.gris1)
+  doc.rect(L, doc.y, 3, 54).fill(C.primario)
   const ty = doc.y + 10
 
-  // Columna 1: Inicio
-  doc.fontSize(7).font('Helvetica').fillColor(C.gris3).text('APERTURA DEL TURNO', L + 14, ty)
-  doc.fontSize(12).font('Helvetica-Bold').fillColor(C.gris4)
-    .text(datos.inicio.toLocaleString('es-CL', { timeZone: 'America/Santiago' }), L + 14, ty + 12)
+  ;[
+    { label: 'APERTURA DEL TURNO', valor: datos.inicio.toLocaleString('es-CL', opts), x: L + 12 },
+    { label: 'CIERRE DEL TURNO',   valor: datos.fin.toLocaleString('es-CL', opts),    x: L + 190 },
+    { label: 'SUPERVISOR',         valor: datos.supervisor,                             x: L + 368 },
+  ].forEach(({ label, valor, x }) => {
+    doc.fontSize(7).font('Helvetica').fillColor(C.gris3).text(label, x, ty, { characterSpacing: 0.3 })
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(C.gris5).text(valor, x, ty + 13)
+  })
+  doc.y = ty + 56
 
-  // Columna 2: Cierre
-  doc.fontSize(7).font('Helvetica').fillColor(C.gris3).text('CIERRE DEL TURNO', L + 185, ty)
-  doc.fontSize(12).font('Helvetica-Bold').fillColor(C.gris4)
-    .text(datos.fin.toLocaleString('es-CL', { timeZone: 'America/Santiago' }), L + 185, ty + 12)
-
-  // Columna 3: Supervisor
-  doc.fontSize(7).font('Helvetica').fillColor(C.gris3).text('SUPERVISOR', L + 370, ty)
-  doc.fontSize(12).font('Helvetica-Bold').fillColor(C.gris4)
-    .text(datos.supervisor, L + 370, ty + 12)
-
-  doc.y = ty + 60 + 4
-
-  // ── ESTADISTICAS ──────────────────────────────────────────────────────────
-  doc.moveDown(0.6)
-  doc.fontSize(11).font('Helvetica-Bold').fillColor(C.gris4).text('Resumen del turno')
-  doc.moveDown(0.3)
+  // ── RESUMEN ───────────────────────────────────────────────────────────
+  seccion(doc, 'Resumen del turno')
 
   const total      = datos.tareas.length
   const aprobadas  = datos.tareas.filter(t => t.estado === 'APROBADA').length
-  const rechazadas = datos.tareas.filter(t => t.estado === 'RECHAZADA').length
-  const pendientes = datos.tareas.filter(t => t.estado === 'PENDIENTE').length
+  const conRechazo = datos.tareas.filter(t => !!t.observacion).length
+  const sinRes     = datos.tareas.filter(t => ['PENDIENTE','EN_REVISION'].includes(t.estado)).length
   const pct        = total > 0 ? Math.round((aprobadas / total) * 100) : 0
-  const pctColor   = pct >= 80 ? C.verde : pct >= 50 ? '#b45309' : C.rojo
+  const pctColor   = pct >= 80 ? C.verde : pct >= 50 ? C.amarillo : C.rojo
 
-  const sy   = doc.y
-  const sw   = (W - 12) / 4
-  const stats = [
-    { label: 'TOTAL TAREAS',  value: String(total),     color: C.gris4 },
-    { label: 'APROBADAS',     value: String(aprobadas), color: C.verde },
-    { label: 'RECHAZADAS',    value: String(rechazadas + pendientes), color: C.rojo },
-    { label: '% APROBACION',  value: `${pct}%`,         color: pctColor },
-  ]
-
-  stats.forEach((s, i) => {
-    const x = L + i * (sw + 4)
-    doc.roundedRect(x, sy, sw, 48, 3).fill(C.gris1)
+  const sy  = doc.y
+  const sw  = (W - 20) / 5
+  ;[
+    { label: 'TOTAL TAREAS',    valor: String(total),       color: C.gris5,   fondo: '#ffffff' },
+    { label: 'APROBADAS',       valor: String(aprobadas),   color: C.verde,   fondo: C.verdeBg },
+    { label: 'CON RECHAZO',     valor: String(conRechazo),  color: C.amarillo,fondo: C.amarilloBg },
+    { label: 'SIN RESOLVER',    valor: String(sinRes),      color: C.rojo,    fondo: C.rojoBg },
+    { label: '% APROBACION',    valor: `${pct}%`,           color: pctColor,  fondo: '#ffffff' },
+  ].forEach((s, i) => {
+    const x = L + i * (sw + 5)
+    doc.rect(x, sy, sw, 50).fill(s.fondo)
+    doc.rect(x, sy, sw, 2).fill(s.color)
     doc.fontSize(7).font('Helvetica').fillColor(C.gris3)
-      .text(s.label, x + 8, sy + 7, { width: sw - 16 })
+      .text(s.label, x + 6, sy + 8, { width: sw - 12, characterSpacing: 0.2 })
     doc.fontSize(20).font('Helvetica-Bold').fillColor(s.color)
-      .text(s.value, x + 8, sy + 18, { width: sw - 16 })
+      .text(s.valor, x + 6, sy + 20, { width: sw - 12 })
   })
+  doc.y = sy + 58
 
-  doc.y = sy + 56
-  doc.moveDown(0.4)
-  linea(doc, doc.y)
-  doc.moveDown(0.6)
+  if (datos.tareas.filter(t => !!t.observacion).length > 0) {
+    doc.fontSize(7).font('Helvetica').fillColor(C.amarillo)
+      .text('* APROBADA con rechazo previo registrado', L, doc.y + 4)
+    doc.y += 14
+  }
 
-  // ── DETALLE POR GUARDIA ───────────────────────────────────────────────────
-  doc.fontSize(11).font('Helvetica-Bold').fillColor(C.gris4).text('Detalle por guardia')
-  doc.moveDown(0.4)
+  // ── DETALLE POR GUARDIA ───────────────────────────────────────────────
+  seccion(doc, 'Detalle de tareas por guardia')
 
-  // Agrupar tareas por guardia
-  const porGuardia = new Map<number, { nombre: string; rut: string; tareas: Tarea[] }>()
+  const porGuardia = new Map<string, { nombre: string; rut: string; tareas: Tarea[] }>()
   datos.tareas.forEach(t => {
-    const gId   = t.guardia ? 0 : -1
-    const gNom  = t.guardia?.nombre ?? 'Sin asignar'
-    const gRut  = t.guardia?.rut    ?? '-'
-    const key   = gNom // usamos nombre como clave
-    if (!porGuardia.has(gId)) {
-      // usamos index del map como id unico
-    }
-    // Agrupamos por nombre del guardia
-    const existing = [...porGuardia.values()].find(g => g.nombre === gNom)
-    if (existing) {
-      existing.tareas.push(t)
-    } else {
-      porGuardia.set(porGuardia.size, { nombre: gNom, rut: gRut, tareas: [t] })
-    }
+    const n = t.guardia?.nombre ?? 'Sin asignar'
+    const r = t.guardia?.rut    ?? '-'
+    const ex = porGuardia.get(n)
+    if (ex) ex.tareas.push(t)
+    else    porGuardia.set(n, { nombre: n, rut: r, tareas: [t] })
   })
 
-  porGuardia.forEach(({ nombre, rut, tareas: tareasGuardia }) => {
+  porGuardia.forEach(({ nombre, rut, tareas: tg }) => {
     if (doc.y > 680) doc.addPage()
 
-    const aprobG = tareasGuardia.filter(t => t.estado === 'APROBADA').length
-
-    // Cabecera del guardia
-    doc.roundedRect(L, doc.y, W, 30, 3).fill(C.encab)
+    // Cabecera guardia
+    doc.rect(L, doc.y, W, 28).fill(C.encab2)
+    doc.rect(L, doc.y, 4, 28).fill(C.primario)
     doc.fontSize(11).font('Helvetica-Bold').fillColor(C.primario)
-      .text(nombre, L + 12, doc.y + 9)
-    doc.fontSize(8).font('Helvetica').fillColor('#8b92a1')
-      .text(
-        `RUT: ${rut}   ·   ${tareasGuardia.length} tarea${tareasGuardia.length !== 1 ? 's' : ''}   ·   ${aprobG} aprobada${aprobG !== 1 ? 's' : ''}`,
-        L + 12, doc.y + 9, { align: 'right', width: W - 24 }
-      )
-    doc.y += 38
+      .text(nombre, L + 14, doc.y + 8, { width: 280 })
+    const aprobG = tg.filter(t => t.estado === 'APROBADA').length
+    doc.fontSize(8).font('Helvetica').fillColor('#94a3b8')
+      .text(`RUT ${rut}  ·  ${tg.length} tarea${tg.length !== 1 ? 's' : ''}  ·  ${aprobG} aprobada${aprobG !== 1 ? 's' : ''}`,
+        L + 14, doc.y + 8, { align: 'right', width: W - 28 })
+    doc.y += 34
 
-    // Tareas del guardia
-    tareasGuardia.forEach((t, idx) => {
-      if (doc.y > 720) doc.addPage()
+    tg.forEach((t, idx) => {
+      if (doc.y > 700) doc.addPage()
 
-      const est    = etiquetaEstado(t.estado)
-      const esRec  = t.estado === 'RECHAZADA' || (t.estado === 'PENDIENTE' && t.observacion)
-      const rowBg  = idx % 2 === 0 ? '#ffffff' : C.gris1
+      const est    = badgeEstado(t)
+      const isOdd  = idx % 2 !== 0
+      const startY = doc.y
 
-      // Fila de la tarea
-      const rowY  = doc.y
-      const rowH  = 14 + (t.evidencia ? 12 : 0) + (t.observacion ? 12 : 0) + 8
+      // Fondo de fila
+      if (isOdd) doc.rect(L, startY, W, 120).fill('#fafafa')
 
-      doc.rect(L, rowY, W, rowH + 10).fill(rowBg)
+      // Borde izquierdo de color segun estado
+      doc.rect(L, startY, 3, 120).fill(est.color)
 
-      // Numero + estado
+      // Numero y zona
       doc.fontSize(8).font('Helvetica-Bold').fillColor(C.gris4)
-        .text(`${idx + 1}.`, L + 8, rowY + 8)
+        .text(`${idx + 1}.`, L + 10, startY + 8)
+      doc.fontSize(10).font('Helvetica-Bold').fillColor(C.gris5)
+        .text(t.zona, L + 26, startY + 7, { width: 300 })
 
-      // Badge de estado
-      const bw = 60
-      doc.roundedRect(R - bw - 4, rowY + 5, bw, 14, 3).fill(est.fondo)
-      doc.fontSize(7).font('Helvetica-Bold').fillColor(est.color)
-        .text(est.texto, R - bw - 4, rowY + 8, { width: bw, align: 'center' })
+      // Badges
+      const est2 = badgeEstado(t)
+      const bw   = est2.texto.length > 8 ? 88 : 70
+      badge(doc, R - bw - 2, startY + 5, est2.texto, est2.color, est2.fondo, bw)
+      if (t.prioridad === 'URGENTE')
+        badge(doc, R - bw - 68, startY + 5, 'URGENTE', C.primario, C.amarilloBg, 62)
 
-      // Prioridad
-      if (t.prioridad === 'URGENTE') {
-        doc.roundedRect(R - bw - 70, rowY + 5, 60, 14, 3).fill('#fff7ed')
-        doc.fontSize(7).font('Helvetica-Bold').fillColor(C.primario)
-          .text('URGENTE', R - bw - 70, rowY + 8, { width: 60, align: 'center' })
-      }
-
-      // Zona
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(C.gris4)
-        .text(t.zona, L + 20, rowY + 8, { width: 280 })
-
-      // Instruccion del supervisor
+      // Instruccion
+      let cy = startY + 22
       doc.fontSize(8).font('Helvetica').fillColor(C.gris3)
-        .text('Instruccion: ', L + 20, rowY + 21, { continued: true, width: 460 })
-      doc.fillColor(C.gris4)
-        .text(t.descripcion, { width: 460 })
+        .text('Instruccion del supervisor:', L + 26, cy)
+      cy += 11
+      doc.fontSize(8).font('Helvetica').fillColor(C.gris4)
+        .text(t.descripcion, L + 26, cy, { width: W - 40 })
+      cy = doc.y + 5
 
-      let curY = doc.y + 3
-
-      // Reporte del guardia (si existe)
+      // Reporte del guardia
       if (t.evidencia) {
         doc.fontSize(8).font('Helvetica').fillColor(C.gris3)
-          .text('Reporte guardia: ', L + 20, curY, { continued: true, width: 460 })
-        doc.fillColor(C.gris4)
-          .text(t.evidencia, { width: 460 })
-        curY = doc.y + 3
+          .text('Reporte del guardia:', L + 26, cy)
+        cy += 11
+        doc.fontSize(8).font('Helvetica').fillColor(C.gris4)
+          .text(t.evidencia, L + 26, cy, { width: W - 40 })
+        cy = doc.y + 5
       }
 
-      // Motivo de rechazo (si existe)
+      // Motivo de rechazo
       if (t.observacion) {
-        doc.roundedRect(L + 14, curY - 2, W - 28, 16, 2).fill('#fee2e2')
+        doc.rect(L + 20, cy, W - 24, 16).fill(C.rojoBg)
+        doc.rect(L + 20, cy, 3, 16).fill(C.rojo)
         doc.fontSize(8).font('Helvetica-Bold').fillColor(C.rojo)
-          .text('Rechazo: ', L + 20, curY, { continued: true, width: 460 })
+          .text('Motivo de rechazo: ', L + 28, cy + 4, { continued: true, width: W - 40 })
         doc.font('Helvetica').fillColor('#7f1d1d')
-          .text(t.observacion, { width: 440 })
-        curY = doc.y + 3
+          .text(t.observacion, { width: W - 100 })
+        cy = doc.y + 5
       }
 
-      doc.y = curY + 4
-      linea(doc, doc.y)
+      doc.y = cy + 4
+      doc.moveTo(L + 4, doc.y).lineTo(R, doc.y).strokeColor(C.gris2).lineWidth(0.4).stroke()
       doc.y += 4
     })
-
-    doc.moveDown(0.6)
+    doc.y += 8
   })
 
-  // ── PIE DE PAGINA ─────────────────────────────────────────────────────────
-  const totalPages = (doc.bufferedPageRange().count)
-  for (let i = 0; i < totalPages; i++) {
+  // ── INCIDENCIAS ───────────────────────────────────────────────────────
+  if (datos.incidencias?.length > 0) {
+    seccion(doc, `Incidencias del turno (${datos.incidencias.length})`)
+
+    datos.incidencias.forEach((inc, idx) => {
+      if (doc.y > 700) doc.addPage()
+
+      const colorG = inc.gravedad === 'GRAVE' ? C.rojo : inc.gravedad === 'MEDIA' ? C.amarillo : C.azul
+      const fondoG = inc.gravedad === 'GRAVE' ? C.rojoBg : inc.gravedad === 'MEDIA' ? C.amarilloBg : C.azulBg
+      const isOdd  = idx % 2 !== 0
+      const startY = doc.y
+
+      if (isOdd) doc.rect(L, startY, W, 80).fill('#fafafa')
+      doc.rect(L, startY, 3, 80).fill(colorG)
+
+      doc.fontSize(10).font('Helvetica-Bold').fillColor(C.gris5)
+        .text(`${idx + 1}. ${inc.titulo}`, L + 10, startY + 8, { width: 320 })
+
+      badge(doc, R - 68, startY + 5, inc.gravedad, colorG, fondoG, 64)
+      if (inc.estado === 'CERRADA')
+        badge(doc, R - 138, startY + 5, 'CERRADA', C.verde, C.verdeBg, 64)
+
+      let cy = startY + 22
+      doc.fontSize(8).font('Helvetica').fillColor(C.gris3)
+        .text(`Zona: `, L + 10, cy, { continued: true })
+      doc.fillColor(C.gris4).text(inc.zona)
+      cy = doc.y + 3
+
+      doc.fontSize(8).font('Helvetica').fillColor(C.gris3)
+        .text('Descripcion: ', L + 10, cy, { continued: true })
+      doc.fillColor(C.gris4).text(inc.descripcion, { width: W - 20 })
+      cy = doc.y + 4
+
+      if (inc.resolucion) {
+        doc.rect(L + 6, cy, W - 10, 16).fill(C.verdeBg)
+        doc.rect(L + 6, cy, 3, 16).fill(C.verde)
+        doc.fontSize(8).font('Helvetica-Bold').fillColor(C.verde)
+          .text('Resolucion: ', L + 14, cy + 4, { continued: true })
+        doc.font('Helvetica').fillColor('#14532d').text(inc.resolucion, { width: W - 40 })
+        cy = doc.y + 4
+      }
+
+      doc.y = cy + 4
+      doc.moveTo(L + 4, doc.y).lineTo(R, doc.y).strokeColor(C.gris2).lineWidth(0.4).stroke()
+      doc.y += 4
+    })
+  }
+
+  // ── PIE DE PAGINA ─────────────────────────────────────────────────────
+  const total2 = doc.bufferedPageRange().count
+  for (let i = 0; i < total2; i++) {
     doc.switchToPage(i)
-    const py = 818
-    doc.moveTo(L, py).lineTo(R, py).strokeColor(C.gris2).lineWidth(0.5).stroke()
-    doc.fontSize(7).font('Helvetica').fillColor(C.gris3)
-      .text(`S.I. Protection  ·  Informe de Turno #${datos.id}  ·  ${datos.fin.toLocaleString('es-CL', { timeZone: 'America/Santiago' })}`,
-        L, py + 6, { width: 300 })
-    doc.text(`Pagina ${i + 1} de ${totalPages}`, L, py + 6, { width: W, align: 'right' })
+    doc.rect(0, 820, 595, 22).fill(C.encab)
+    doc.fontSize(7).font('Helvetica').fillColor('#64748b')
+      .text(`S.I. Protection  ·  Informe de Turno #${datos.id}  ·  ${datos.fin.toLocaleString('es-CL', opts)}`,
+        L, 826, { width: 350 })
+    doc.text(`Pagina ${i + 1} de ${total2}`, L, 826, { width: W, align: 'right' })
   }
 
   doc.end()
