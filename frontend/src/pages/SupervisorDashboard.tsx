@@ -156,33 +156,41 @@ export default function SupervisorDashboard(props: Props) {
 
           <div style={{ height: 1, background: 'var(--border)', margin: '14px 0' }} />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.08em', color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 8 }}>
+            Navegación
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {[
-              { icon: 'cam',   label: 'Camaras en vivo',    fn: props.onCamaras },
-              { icon: 'user',  label: 'Gestionar guardias', fn: props.onGestionGuardias },
-              { icon: 'list',  label: 'Historial de turnos', fn: props.onHistorial },
-              { icon: 'alert', label: 'Incidencias',         fn: props.onIncidencias },
+              { icon: 'cam',   label: 'Cámaras en vivo',     sub: 'Centro de Mando y Control', fn: props.onCamaras,          color: 'var(--green)' },
+              { icon: 'user',  label: 'Gestionar guardias',   sub: 'Alta, edición y turnos',    fn: props.onGestionGuardias,  color: 'var(--blue)' },
+              { icon: 'list',  label: 'Historial de turnos',  sub: 'Turnos cerrados anteriores', fn: props.onHistorial,       color: 'var(--primary)' },
+              { icon: 'alert', label: 'Incidencias',           sub: 'Registro de eventos',       fn: props.onIncidencias,     color: 'var(--red)' },
             ].map(btn => (
               <button key={btn.label}
                 onClick={btn.fn}
                 style={{
-                  width: '100%', padding: '8px 10px',
-                  background: 'transparent',
+                  width: '100%', padding: '12px 14px',
+                  background: 'var(--surface-2)',
                   border: '1px solid var(--border)',
-                  borderRadius: 'var(--r-sm)',
-                  color: 'var(--text-2)', fontSize: 11,
+                  borderRadius: 'var(--r-md)',
                   textAlign: 'left', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 7,
-                  transition: 'background .15s, color .15s',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  transition: 'border-color .15s, background .15s',
                 }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-3)'; e.currentTarget.style.color = 'var(--text)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-2)' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = btn.color; e.currentTarget.style.background = 'var(--surface-3)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface-2)' }}
               >
-                { btn.icon === 'cam'   && <IconCamera size={13} color="var(--text-2)" /> }
-                { btn.icon === 'user'  && <IconUser  size={13} color="var(--text-2)" /> }
-                { btn.icon === 'list'  && <IconList  size={13} color="var(--text-2)" /> }
-                { btn.icon === 'alert' && <IconAlert size={13} color="var(--text-2)" /> }
-                {btn.label}
+                <div style={{ width: 36, height: 36, borderRadius: 'var(--r-sm)', background: `${btn.color}18`, border: `1px solid ${btn.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  { btn.icon === 'cam'   && <IconCamera size={16} color={btn.color} /> }
+                  { btn.icon === 'user'  && <IconUser   size={16} color={btn.color} /> }
+                  { btn.icon === 'list'  && <IconList   size={16} color={btn.color} /> }
+                  { btn.icon === 'alert' && <IconAlert  size={16} color={btn.color} /> }
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 2 }}>{btn.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{btn.sub}</div>
+                </div>
               </button>
             ))}
           </div>

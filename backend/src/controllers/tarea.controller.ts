@@ -1,6 +1,6 @@
+import { generarPDFTurno } from '../lib/pdf.service'
 import { enviarPushAUsuario } from './push.controller'
 import { Response } from 'express'
-import PDFDocument from 'pdfkit'
 import fs from 'fs'
 import path from 'path'
 import prisma from '../lib/prisma'
@@ -18,7 +18,12 @@ const ensureUploads = () => {
 
 export const getTareas = async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
+
+    const turnoActivo = await prisma.turno.findFirst({ where: { abierto: true } })
+    if (!turnoActivo) { res.json([]); return }
+
     const tareas = await prisma.tarea.findMany({
+      where:   { turnoId: turnoActivo.id },
       include:  INCLUDE,
       orderBy:  [{ prioridad: 'desc' }, { id: 'desc' }],
     })
@@ -208,7 +213,6 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
     const noAprobadas = turno.tareas.filter(t => t.estado !== 'APROBADA')
     const pct        = turno.tareas.length > 0 ? Math.round((aprobadas.length / turno.tareas.length) * 100) : 0
 
-    // Agrupa por guardia
     const porGuardia = new Map<number, { nombre: string; rut: string; tareas: typeof turno.tareas }>()
     turno.tareas.forEach(t => {
       if (!porGuardia.has(t.guardiaId)) {
@@ -221,159 +225,14 @@ export const cerrarTurno = async (_req: AuthRequest, res: Response): Promise<voi
       porGuardia.get(t.guardiaId)!.tareas.push(t)
     })
 
-    const doc = new PDFDocument({ margin: 50, size: 'A4' })
-    res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `attachment; filename="informe_turno_${turno.id}.pdf"`)
-    doc.pipe(res)
-
-    // Encabezado 
-    doc.rect(0, 0, 595, 80).fill('#0d0f12')
-    doc.fontSize(20).font('Helvetica-Bold').fillColor('#f5a623')
-      .text('S.I. PROTECTION', 50, 22)
-    doc.fontSize(10).font('Helvetica').fillColor('#8b92a1')
-      .text('Sistema de Supervision Operativa', 50, 48)
-    doc.fontSize(9).fillColor('#4a5060')
-      .text(`Generado: ${ahora.toLocaleString('es-CL')}`, 50, 62)
-
-    // Numero de informe arriba a la derecha
-    doc.fontSize(22).font('Helvetica-Bold').fillColor('#f5a623')
-      .text(`#${turno.id}`, 0, 22, { align: 'right' })
-    doc.fontSize(8).font('Helvetica').fillColor('#4a5060')
-      .text('N? DE TURNO', 0, 48, { align: 'right' })
-
-    doc.fillColor('#000')
-    doc.y = 95
-
-    // Datos del turno 
-    doc.roundedRect(50, doc.y, 495, 52, 4).fill('#f8f9fa')
-    const iy = doc.y + 10
-    doc.fontSize(8).font('Helvetica').fillColor('#888')
-      .text('APERTURA DEL TURNO', 65, iy)
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#222')
-      .text(turno.inicio.toLocaleString('es-CL'), 65, iy + 12)
-
-    doc.fontSize(8).font('Helvetica').fillColor('#888')
-      .text('CIERRE DEL TURNO', 260, iy)
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#222')
-      .text(ahora.toLocaleString('es-CL'), 260, iy + 12)
-
-    doc.fontSize(8).font('Helvetica').fillColor('#888')
-      .text('SUPERVISOR', 430, iy)
-    doc.fontSize(11).font('Helvetica-Bold').fillColor('#222')
-      .text(turno.tareas[0]?.supervisor?.nombre ?? '?', 430, iy + 12)
-
-    doc.y = iy + 52
-
-    // Resumen estadistico 
-    doc.moveDown(0.8)
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#222').text('Resumen del turno')
-    doc.moveDown(0.4)
-
-    // 4 cajas de stats
-    const statY  = doc.y
-    const statW  = 114
-    const statGap = 9
-    const stats  = [
-      { label: 'TOTAL TAREAS',  value: String(turno.tareas.length),  color: '#222' },
-      { label: 'APROBADAS',     value: String(aprobadas.length),      color: '#15803d' },
-      { label: 'OBSERVACIONES', value: String(noAprobadas.length),    color: '#b91c1c' },
-      { label: '% APROBACION',  value: `${pct}%`,
-        color: pct >= 80 ? '#15803d' : pct >= 50 ? '#b45309' : '#b91c1c' },
-    ]
-
-    stats.forEach((s, i) => {
-      const x = 50 + i * (statW + statGap)
-      doc.roundedRect(x, statY, statW, 52, 4).fill('#f8f9fa')
-      doc.fontSize(7).font('Helvetica').fillColor('#888')
-        .text(s.label, x + 10, statY + 8, { width: statW - 20 })
-      doc.fontSize(22).font('Helvetica-Bold').fillColor(s.color)
-        .text(s.value, x + 10, statY + 20, { width: statW - 20 })
-    })
-
-    doc.y = statY + 62
-
-    // Separador 
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor('#ddd').lineWidth(0.5).stroke()
-    doc.moveDown(0.8)
-
-    // Detalle por guardia 
-    doc.fontSize(12).font('Helvetica-Bold').fillColor('#222').text('Detalle por guardia')
-    doc.moveDown(0.5)
-
-    porGuardia.forEach(({ nombre, rut, tareas }) => {
-      const aprobG = tareas.filter(t => t.estado === 'APROBADA').length
-
-      // Verifica espacio ? salto de pagina si es necesario
-      if (doc.y > 700) doc.addPage()
-
-      // Cabecera del guardia
-      doc.roundedRect(50, doc.y, 495, 28, 4).fill('#1a1a2e')
-      doc.fontSize(11).font('Helvetica-Bold').fillColor('#f5a623')
-        .text(nombre, 62, doc.y + 8)
-      doc.fontSize(9).font('Helvetica').fillColor('#8b92a1')
-        .text(`RUT: ${rut}   ?   ${tareas.length} tarea${tareas.length !== 1 ? 's' : ''}   ?   ${aprobG} aprobada${aprobG !== 1 ? 's' : ''}`,
-          62, doc.y + 8, { align: 'right', width: 470 })
-      doc.y += 36
-
-      // Tareas del guardia
-      tareas.forEach((t, i) => {
-        if (doc.y > 720) doc.addPage()
-
-        const ok    = t.estado === 'APROBADA'
-        const color = ok ? '#15803d' : '#b91c1c'
-        const etiq  = ok ? '? APROBADA' : '? PENDIENTE'
-
-        doc.roundedRect(50, doc.y, 495, 1, 0).fill('#eee')
-        doc.y += 6
-
-        doc.fontSize(9).font('Helvetica-Bold').fillColor(color)
-          .text(`${i + 1}.  [${etiq}]`, 55, doc.y, { continued: true })
-        doc.fillColor('#333')
-          .font('Helvetica').text(`  Zona: ${t.zona}   |   Prioridad: ${t.prioridad}`)
-        doc.fontSize(8).font('Helvetica').fillColor('#555')
-          .text(`        Instruccion: ${t.descripcion}`, 55)
-
-        if (t.evidencia) {
-          doc.fillColor('#444')
-            .text(`        Reporte: ${t.evidencia}`, 55)
-        }
-
-        if (t.observacion) {
-          doc.fillColor('#b91c1c')
-            .text(`        Observacion: ${t.observacion}`, 55)
-        }
-
-        // Foto en el PDF
-        if (t.fotoUrl) {
-          const rutaFoto = path.join(__dirname, '../..', t.fotoUrl)
-          if (fs.existsSync(rutaFoto)) {
-            try {
-              if (doc.y > 650) doc.addPage()
-              doc.image(rutaFoto, 55, doc.y + 4, { width: 120, height: 80 })
-              doc.y += 92
-            } catch { /* foto invalida, se omite */ }
-          }
-        }
-
-        doc.moveDown(0.5)
-      })
-
-      doc.moveDown(0.4)
-    })
-
-    // Pie de pagina 
-    const pY = 780
-    doc.moveTo(50, pY).lineTo(545, pY).strokeColor('#ddd').lineWidth(0.5).stroke()
-
-    // Linea de firma
-    doc.moveTo(330, pY + 30).lineTo(540, pY + 30).strokeColor('#999').lineWidth(0.5).stroke()
-    doc.fontSize(8).font('Helvetica').fillColor('#777')
-      .text('Firma del Supervisor', 330, pY + 34, { width: 210, align: 'center' })
-
-    doc.fontSize(7).fillColor('#bbb')
-      .text(`S.I. Protection ? Informe Turno #${turno.id} ? ${ahora.toLocaleString('es-CL')}`, 50, pY + 10, { width: 270 })
-
-    doc.end()
+    generarPDFTurno({
+      id:         turno.id,
+      inicio:     turno.inicio,
+      fin:        ahora,
+      tareas:     turno.tareas as any,
+      supervisor: turno.tareas[0]?.supervisor?.nombre ?? 'Supervisor',
+    }, res)
+    return
   } catch {
     if (!res.headersSent) {
       res.status(500).json({ error: 'Error al generar el informe.' })
