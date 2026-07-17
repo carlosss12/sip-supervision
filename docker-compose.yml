@@ -29,11 +29,18 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql://sip_user:sip_pass@db:5432/sip_db}
-      JWT_SECRET:   ${JWT_SECRET:-sip_jwt_secret_2024_muy_largo_y_seguro}
-      PORT:         ${PORT:-4000}
-      NODE_ENV:     ${NODE_ENV:-development}
-      TZ:           ${TZ:-America/Santiago}
+      DATABASE_URL:      ${DATABASE_URL:-postgresql://sip_user:sip_pass@db:5432/sip_db}
+      JWT_SECRET:        ${JWT_SECRET:-sip_jwt_secret_2024_muy_largo_y_seguro}
+      PORT:              ${PORT:-4000}
+      NODE_ENV:          ${NODE_ENV:-development}
+      TZ:                ${TZ:-America/Santiago}
+      NVR_IP:            ${NVR_IP:-200.54.84.35}
+      NVR_PORT:          ${NVR_PORT:-49201}
+      NVR_USER:          ${NVR_USER:-admin}
+      NVR_PASS:          ${NVR_PASS:-Securitas2397*}
+      VAPID_PUBLIC_KEY:  ${VAPID_PUBLIC_KEY:-BE9qpl-6nS-4sHCMeUupD8PksQ4giMSSbXO9Yi8bhiJ_jsfRWZ5_C0nskn4Dc6-VC45YoE8Yoj8pqBDJ22tBgl4}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-32rr-ISNKqYVwp647LuhwoadTmPog6BuCnJXSgTaESM}
+      VAPID_EMAIL:       ${VAPID_EMAIL:-mailto:admin@sip.cl}
     ports:
       - "4000:4000"
     volumes:
